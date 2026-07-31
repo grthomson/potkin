@@ -72,3 +72,42 @@
   (check-true (redex-check? reserved-key-calculus candidate boundary))
   (check-equal? (redex-root-boundaries reserved-key-calculus candidate)
                 (list boundary)))
+
+;; Open typing never consults filler availability in either checker.
+(define needs-S-occurrence
+  (make-concrete-occurrence 'needs-S (list S) U #:kind 'logical))
+(define no-S-ground-calculus
+  (make-equipped-calculus (list needs-S-occurrence)))
+(define no-filler-corolla (raw-app 'needs-S raw-hole))
+(check-true
+ (validation-success?
+  (validate-candidate no-S-ground-calculus no-filler-corolla #:expected U)))
+(check-true (redex-check? no-S-ground-calculus no-filler-corolla U))
+
+;; CK-derived remainders and detached terms cross the exact same raw bridge.
+(for ([witness (in-admissible-cut-witnesses running-proof)])
+  (define remainder (cut-witness-remainder witness))
+  (define remainder-raw (checked-term->raw remainder))
+  (check-true (redex-check? running-calculus remainder-raw U))
+  (check-equal? (redex-root-boundaries running-calculus remainder-raw)
+                (list U))
+  (check-equal?
+   (validate-candidate running-calculus remainder-raw #:expected U)
+   remainder)
+  (for ([entry (in-list (cut-witness-detached witness))])
+    (define detached (detached-entry-term entry))
+    (define detached-boundary (derivation-root-boundary detached))
+    (define detached-raw (checked-term->raw detached))
+    (check-true
+     (redex-check? running-calculus detached-raw detached-boundary))
+    (check-equal?
+     (validate-candidate running-calculus
+                         detached-raw
+                         #:expected detached-boundary)
+     detached))
+  (define reconstructed (reconstruct-cut-witness witness))
+  (check-equal? reconstructed running-proof)
+  (check-true
+   (redex-check? running-calculus
+                 (checked-term->raw reconstructed)
+                 U)))
