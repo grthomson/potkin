@@ -1,32 +1,33 @@
 # Potkin
 
-Scaffold for an executable Racket/Redex presentation of the project’s
-Hopf-algebraic proof-calculus framework.
+Executable Racket/Redex presentation of the project's calculus-relative
+proof/context kernel.
 
 ## Status
 
-This repository intentionally contains only:
+The implemented static slice contains:
 
 - Racket package metadata;
-- a neutral module layout;
-- the standard tiny Redex smoke example; and
-- a smoke test.
+- canonical multiset sequent and hypersequent boundaries;
+- immutable equipped-calculus registries of concrete occurrences;
+- a shared raw syntax with independent Redex and ordinary-Racket checkers; and
+- the preserved standard Redex smoke example and test.
 
-No proof language, carrier, typing judgment, CK cut operation, filling
-operation, or liveness semantics has been fixed yet. Those definitions will be
-implemented from the current paper specification.
+See `docs/semantic-contract-v56.md` for the exact scope and deferred features.
 
 ## Layout
 
 ```text
 potkin/
-  model.rkt       Redex language and judgments (currently smoke test only)
-  kernel.rkt      Ordinary Racket algorithms (currently reserved)
+  model.rkt       Redex language and judgments (plus preserved smoke model)
+  model/          Redex static kernel
+  kernel.rkt      Ordinary-Racket public facade
+  kernel/         Boundaries, registries, syntax, and typed validation
   main.rkt        Public package entry point
 examples/
-  smoke.rkt
+  smoke.rkt       Preserved installation smoke example
 tests/
-  smoke-test.rkt
+  smoke-test.rkt  Preserved installation smoke test
 ```
 
 ## Local toolchain
@@ -47,4 +48,3 @@ The expected example output is:
 #t
 (ground)
 ```
-

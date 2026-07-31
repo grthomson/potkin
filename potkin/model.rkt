@@ -1,9 +1,11 @@
 #lang racket
 
-(require redex/reduction-semantics)
+(require redex/reduction-semantics
+         "model/kernel-redex.rkt")
 
 (provide PotkinSmoke
-         smoke-join)
+         smoke-join
+         (all-from-out "model/kernel-redex.rkt"))
 
 ;; Installation smoke test only.  The project language will be specified from
 ;; the current paper before any proof-theoretic grammar is committed here.
