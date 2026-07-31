@@ -1,0 +1,7 @@
+compiled/
+doc/
+*.zo
+*.dep
+*.bak
+*~
+
