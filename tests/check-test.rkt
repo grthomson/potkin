@@ -61,6 +61,11 @@
  (lambda ()
    (make-concrete-occurrence
     'mutable-instance '() S #:instance (vector 'can-change))))
+(check-exn
+ exn:fail:contract?
+ (lambda ()
+   (make-concrete-occurrence
+    (string->uninterned-symbol "ground") '() S #:kind 'material)))
 
 (define open-m
   (validate-candidate running-calculus (raw-app 'm raw-hole raw-hole)))

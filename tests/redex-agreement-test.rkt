@@ -44,6 +44,9 @@
                                      (raw-app 'm raw-hole raw-hole))
               (list ST))
 (check-equal? (redex-root-boundaries running-calculus raw-hole) '())
+(check-false
+ (judgment-holds
+  (candidate-checks not-a-calculus ,S (puncture))))
 (check-true (redex-valid? running-calculus running-raw))
 (check-false (redex-valid? running-calculus raw-hole))
 (check-false (redex-valid? running-calculus

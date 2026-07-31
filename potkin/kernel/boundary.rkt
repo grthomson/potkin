@@ -29,7 +29,7 @@
 ;; immutable makes multiset equality stable after construction.
 (define (formula-datum? value)
   (cond
-    [(or (symbol? value)
+    [(or (and (symbol? value) (symbol-interned? value))
          (keyword? value)
          (and (number? value) (exact? value))
          (boolean? value)

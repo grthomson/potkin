@@ -8,6 +8,10 @@
 (check-equal? gamma-1 gamma-2)
 (check-equal? (formula-context-count gamma-1 'A) 2)
 (check-equal? (formula-context-size gamma-1) 3)
+(check-exn exn:fail:contract?
+           (lambda ()
+             (make-formula-context
+              (list (string->uninterned-symbol "A")))))
 
 (define repeated (make-sequent '(A) '(B)))
 (define exchanged

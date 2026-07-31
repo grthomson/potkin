@@ -10,7 +10,8 @@ The implemented static slice contains:
 - Racket package metadata;
 - canonical multiset sequent and hypersequent boundaries;
 - immutable equipped-calculus registries of concrete occurrences;
-- a shared raw syntax with independent Redex and ordinary-Racket checkers; and
+- a shared raw syntax with independent Redex and ordinary-Racket checkers;
+- typed punctures, telescopes, context composition, and complete filling; and
 - the preserved standard Redex smoke example and test.
 
 See `docs/semantic-contract-v56.md` for the exact scope and deferred features.
@@ -22,7 +23,7 @@ potkin/
   model.rkt       Redex language and judgments (plus preserved smoke model)
   model/          Redex static kernel
   kernel.rkt      Ordinary-Racket public facade
-  kernel/         Boundaries, registries, syntax, and typed validation
+  kernel/         Boundaries, checking, addresses, and typed contexts
   main.rkt        Public package entry point
 examples/
   smoke.rkt       Preserved installation smoke example

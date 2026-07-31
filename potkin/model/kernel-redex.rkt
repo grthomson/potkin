@@ -51,7 +51,8 @@
 (define-judgment-form PotkinKernel
   #:mode (candidate-checks I I I)
   #:contract (candidate-checks any H candidate)
-  [(side-condition ,(hypersequent? (term H)))
+  [(side-condition ,(equipped-calculus? (term any_calculus)))
+   (side-condition ,(hypersequent? (term H)))
    -------------------------------------------
    (candidate-checks any_calculus H (puncture))]
   [(where ((H_input ...) H_output)

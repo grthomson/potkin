@@ -63,7 +63,7 @@
 
 (define (immutable-registry-datum? value)
   (cond
-    [(or (symbol? value)
+    [(or (and (symbol? value) (symbol-interned? value))
          (keyword? value)
          (number? value)
          (boolean? value)
@@ -94,15 +94,17 @@
                                   #:tag [tag id]
                                   #:instance [instance #f]
                                   #:incidence [incidence '()])
-  (unless (symbol? id)
-    (raise-argument-error 'make-concrete-occurrence "symbol?" id))
+  (unless (and (symbol? id) (symbol-interned? id))
+    (raise-argument-error
+     'make-concrete-occurrence "interned-symbol?" id))
   (unless (memq kind admitted-kinds)
     (raise-arguments-error
      'make-concrete-occurrence
      "kind must be material, logical, or structural"
      "kind" kind))
-  (unless (symbol? tag)
-    (raise-argument-error 'make-concrete-occurrence "symbol?" tag))
+  (unless (and (symbol? tag) (symbol-interned? tag))
+    (raise-argument-error
+     'make-concrete-occurrence "interned-symbol?" tag))
   (unless (and (list? premises) (andmap hypersequent? premises))
     (raise-argument-error
      'make-concrete-occurrence
@@ -186,9 +188,9 @@
     [(symbol? occurrence-or-id)
      (hash-has-key? (equipped-calculus-registry calculus) occurrence-or-id)]
     [(concrete-occurrence? occurrence-or-id)
-     (eq? occurrence-or-id
-          (calculus-lookup calculus
-                           (concrete-occurrence-id occurrence-or-id)))]
+     (equal? occurrence-or-id
+             (calculus-lookup calculus
+                              (concrete-occurrence-id occurrence-or-id)))]
     [else #f]))
 
 (define (calculus-occurrences calculus)

@@ -10,8 +10,11 @@ This repository implements the first static vertical slice of the calculus-relat
 - An equipped calculus is a finite immutable registry. Profile equality never grants admission: raw applications identify the exact registered occurrence key.
 - Raw candidates use the Redex-friendly shared syntax `(puncture)` or `(app occurrence-key child ...)`. Checked nodes and typed holes are separate values whose constructors are private to the checker.
 - Validation reports structured errors and checks registry membership, exact arity, exact ordered premise boundaries, and an optional expected root boundary. Checked terms expose root boundary, completeness, and vertex count.
+- Punctures have positive premise-slot addresses (with `()` reserved for the typed nodeless identity), and their requirements are read from retained parent occurrences. The premise telescope sorts these address/whole-boundary pairs lexicographically.
+- A corolla is one admitted occurrence with every premise vacant. Typed insertion prefixes the inserted context's internal addresses, context composition fills the current telescope, and complete filling requires a complete proof at every entry. These operations recheck exact boundary and registry provenance; their validity never depends on a filler search.
+- Calculus provenance is retained for rechecking but excluded from structural proof-presentation equality. A term may be inserted into another registry only when all of its exact concrete occurrences are admitted there. Explicit lifting of an old context to a persistent calculus extension is deferred.
 
-Subsequent commits in this slice add address traversal, inferred puncture telescopes, typed insertion/composition and complete filling, commutative forests with block and flattened roots, and address-indexed CK cut witnesses with lazy admissible-cut enumeration.
+The final commit in this slice adds commutative forests with block and flattened roots, and address-indexed CK cut witnesses with lazy admissible-cut enumeration.
 
 ## Equality and indexing
 
