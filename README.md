@@ -11,6 +11,9 @@ The implemented slice contains:
 - a finite declaration EDSL for symbolic formula signatures, canonical
   sequent/hypersequent boundaries, fixed rule decorations, fully instantiated
   concrete occurrences, and ordinary equipped calculi;
+- declarative complete/open proof terms with lexical exact-occurrence
+  selection, derived context interfaces, addressed context composition,
+  backward refinement, and checked filling/extraction points;
 - canonical multiset sequent and hypersequent boundaries;
 - immutable equipped-calculus registries of concrete occurrences;
 - a shared raw syntax with independent Redex and ordinary-Racket checkers;
@@ -57,7 +60,7 @@ potkin/
   hopf.rkt        Integral CK Hopf public facade
   hopf/           Coproduct, grading, antipode, and formal revision maps
   dsl.rkt         Finite declaration EDSL public facade
-  dsl/            Formula, boundary, rule, occurrence, and calculus declarations
+  dsl/            Declarations, checked proof terms, contexts, and filling points
   main.rkt        Public package entry point
 examples/
   smoke.rkt       Preserved installation smoke example
@@ -131,8 +134,18 @@ from the ordinary entry point:
 
 (define-calculus K
   #:language L #:rules Rules #:occurrences [bS bT m])
+
+(define-proof t
+  #:in K #:root HST
+  (m bS bT))
+
+(define-context r
+  #:in K #:root HST
+  (m _ bT))
 ```
 
 Formula constructors still produce ordinary immutable symbolic data, and
 `K` is an ordinary `equipped-calculus?` value. Rule declarations describe
 fixed decorations only; they do not generate schematic rule instances.
+Application heads and leaves in declarative terms are lexical concrete-
+occurrence bindings; `_` is the sole puncture form.

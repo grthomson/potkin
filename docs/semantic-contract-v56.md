@@ -19,8 +19,22 @@ This repository implements the static calculus-relative proof/context kernel des
   metavariables, substitution, unification, or on-demand occurrence creation.
 - An equipped calculus is a finite immutable registry. Profile equality never grants admission: raw applications identify the exact registered occurrence key.
 - Raw candidates use the Redex-friendly shared syntax `(puncture)` or `(app occurrence-key child ...)`. Checked nodes and typed holes are separate values whose constructors are private to the checker.
+- Declarative derivation forms compile `_` and lexical concrete-occurrence
+  bindings into that shared raw syntax, first requiring each cited occurrence
+  to be the exact registry object selected by its ID. They always validate an
+  explicitly declared whole root and never infer a conclusion, resolve a tag,
+  or construct checked nodes directly.
 - Validation reports structured errors and checks registry membership, exact arity, exact ordered premise boundaries, and an optional expected root boundary. Checked terms expose root boundary, completeness, and vertex count.
 - Punctures have positive premise-slot addresses (with `()` reserved for the typed nodeless identity), and their requirements are read from retained parent occurrences. The premise telescope sorts these address/whole-boundary pairs lexicographically.
+- A derived context interface retains the exact calculus snapshot, canonical
+  telescope requirement word, and output boundary. Addressed composition
+  accepts one replacement for every original telescope entry and canonicalises
+  arbitrary association-list order before checked insertion. Backward
+  refinement inserts one exact admitted corolla. A filling-point value stores
+  one ordered tuple of complete exact-provenance fillers; evaluation delegates
+  to checked filling, while extraction decides whether a complete candidate
+  preserves every retained exact occurrence and captures only at the fixed
+  punctures. It does not enumerate or search the filling fibre.
 - A corolla is one admitted occurrence with every premise vacant. Typed insertion prefixes the inserted context's internal addresses, context composition fills the current telescope, and complete filling requires a complete proof at every entry. These operations recheck exact boundary and registry provenance; their validity never depends on a filler search.
 - Calculus provenance is retained for rechecking but excluded from structural proof-presentation equality. `term-admitted-by?` is only an extensional registry-admission query; it does not establish provenance identity. Operational insertion, forest construction, multiplication, and carrier-sensitive lookup require the exact same registry object with `eq?`. Cross-revision use requires explicit checked lifting first.
 - A compatible calculus revision is an immutable source registry, exact withdrawn-ID set, fresh addition set, and internally constructed target `(K0 - D) + A`. Revision equality and hashing include the exact `eq?` identities of both endpoint snapshots; structurally equal registries do not identify operational arrows. Every retained occurrence is reused exactly; profile mutation, substitution, renaming, and component reindexing are absent. Historical validity remains source-relative, while target liveness checks every vertex's full occurrence identity and reports every retired, unknown, or incompatible/redefined address. `identity-calculus-revision` is the exact arrow `K -> K`; by contrast, `make-calculus-revision K '() '()` deliberately constructs a fresh structurally equal target and remains an explicit rebase.
