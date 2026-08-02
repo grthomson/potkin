@@ -15,7 +15,8 @@ The implemented static slice contains:
 - commutative proof forests with block and flattened root profiles;
 - prefix-free, address-indexed CK cut witnesses and lazy cut enumeration;
 - immutable compatible calculus revisions, exact liveness diagnostics, and checked lifting;
-- explicit basis-level constructor deletion for terms and proof forests; and
+- explicit basis-level constructor deletion for terms and proof forests;
+- exact repair plans for withdrawn nullary material grounds, including the separate whole-proof endpoint; and
 - the preserved standard Redex smoke example and test.
 
 See `docs/semantic-contract-v56.md` for the exact scope and deferred features.

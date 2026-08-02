@@ -8,7 +8,8 @@
          "kernel/context.rkt"
          "kernel/cut.rkt"
          "kernel/revision.rkt"
-         "kernel/deletion.rkt")
+         "kernel/deletion.rkt"
+         "kernel/repair.rkt")
 
 (provide (all-from-out "kernel/boundary.rkt")
          (all-from-out "kernel/calculus.rkt")
@@ -18,4 +19,5 @@
          (all-from-out "kernel/context.rkt")
          (all-from-out "kernel/cut.rkt")
          (all-from-out "kernel/revision.rkt")
-         (all-from-out "kernel/deletion.rkt"))
+         (all-from-out "kernel/deletion.rkt")
+         (all-from-out "kernel/repair.rkt"))
