@@ -2,6 +2,7 @@
 
 (require rackunit
          racket/list
+         racket/set
          "../potkin/kernel.rkt"
          (prefix-in example: "../examples/v56-running-factorisation.rkt")
          "kernel-fixtures.rkt")
@@ -158,6 +159,76 @@
 (check-equal? (length chain-cuts) 26)
 (check-equal? (last chain-cuts)
               (list (make-list 25 1)))
+
+;; Independent exhaustive oracle: enumerate every subset of nonroot vertices,
+;; filter prefix-freeness directly, and compare that support with the lazy CK
+;; generator. Do not reuse validate-ck-cut as the oracle predicate.
+(define (all-subsets values)
+  (if (null? values)
+      (list '())
+      (let ([rest-subsets (all-subsets (cdr values))])
+        (append rest-subsets
+                (map (lambda (subset) (cons (car values) subset))
+                     rest-subsets)))))
+
+(define (oracle-prefix-free? addresses)
+  (for*/and ([left (in-list addresses)]
+             [right (in-list addresses)])
+    (or (equal? left right)
+        (and (not (proper-address-prefix? left right))
+             (not (proper-address-prefix? right left))))))
+
+(define (oracle-cuts proof)
+  (for/list ([subset (in-list
+                      (all-subsets (cdr (vertex-addresses proof))))]
+             #:when (oracle-prefix-free? subset))
+    (sort subset address<?)))
+
+(define oracle-ground-occ
+  (make-concrete-occurrence 'oracle-ground '() S #:kind 'material))
+(define oracle-unary-occ
+  (make-concrete-occurrence 'oracle-unary (list S) S #:kind 'logical))
+(define oracle-binary-occ
+  (make-concrete-occurrence 'oracle-binary (list S S) S #:kind 'logical))
+(define oracle-calculus
+  (make-equipped-calculus
+   (list oracle-ground-occ oracle-unary-occ oracle-binary-occ)))
+(define oracle-ground (raw-app 'oracle-ground))
+(define (oracle-unary child) (raw-app 'oracle-unary child))
+(define (oracle-binary left right) (raw-app 'oracle-binary left right))
+(define oracle-raw-trees
+  (let* ([g oracle-ground]
+         [ug (oracle-unary g)]
+         [bg (oracle-binary g g)])
+    (list g
+          ug
+          (oracle-unary ug)
+          (oracle-unary bg)
+          bg
+          (oracle-binary ug g)
+          (oracle-binary g ug)
+          (oracle-binary ug ug)
+          (oracle-binary bg g)
+          (oracle-binary g bg)
+          (oracle-binary bg ug)
+          (oracle-binary ug bg)
+          (oracle-binary bg bg))))
+
+(for ([raw-tree (in-list oracle-raw-trees)])
+  (define proof
+    (validate-candidate oracle-calculus raw-tree #:expected S))
+  (define generated
+    (for/list ([cut (in-admissible-cuts proof)]) cut))
+  (define oracle (oracle-cuts proof))
+  (check-equal? (list->set generated) (list->set oracle))
+  (check-equal? (length generated) (set-count (list->set generated)))
+  (check-equal? (length generated) (length oracle))
+  (for ([cut (in-list generated)])
+    (define witness (make-cut-witness proof cut))
+    (check-true (cut-witness? witness))
+    (check-equal? (cut-witness-addresses witness) cut)
+    (check-true (cut-witness-reconstructs? witness))
+    (check-equal? (reconstruct-cut-witness witness) proof)))
 
 ;; Equal detached trees at distinct positions remain separate occurrences in
 ;; the aligned tuple, and their commutative forest retains multiplicity two.

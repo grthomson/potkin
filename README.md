@@ -13,7 +13,8 @@ The implemented static slice contains:
 - a shared raw syntax with independent Redex and ordinary-Racket checkers;
 - typed punctures, telescopes, context composition, and complete filling;
 - commutative proof forests with block and flattened root profiles;
-- prefix-free, address-indexed CK cut witnesses and lazy cut enumeration; and
+- prefix-free, address-indexed CK cut witnesses and lazy cut enumeration;
+- immutable compatible calculus revisions, exact liveness diagnostics, and checked lifting; and
 - the preserved standard Redex smoke example and test.
 
 See `docs/semantic-contract-v56.md` for the exact scope and deferred features.

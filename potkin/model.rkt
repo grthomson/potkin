@@ -7,8 +7,8 @@
          smoke-join
          (all-from-out "model/kernel-redex.rkt"))
 
-;; Installation smoke test only.  The project language will be specified from
-;; the current paper before any proof-theoretic grammar is committed here.
+;; Installation smoke test only. This toy language makes no semantic claims;
+;; PotkinKernel above is the committed proof-theoretic Redex model.
 (define-language PotkinSmoke
   (p ground
      (fork p p)))
@@ -19,4 +19,3 @@
    (--> (fork ground ground)
         ground
         "join")))
-

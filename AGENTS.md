@@ -7,5 +7,7 @@
 - Keep premise order separate from commutative forest order. The nodeless `Box^G` context is neither an empty forest nor a CK generator. A connected `S | T` proof is not the forest of separate `S` and `T` proofs.
 - Use positive, 1-indexed premise-slot addresses, with `()` at the root. CK cuts contain existing nonroot vertex addresses and are prefix-free.
 - Retain every cut's lexicographically address-aligned detached tuple before forming its commutative forest. Preserve equal subtree occurrences and multiplicity. Never encode the whole-tree algebraic endpoint as a root cut.
+- Build a compatible revision as an immutable target registry `(K0 - D) + A`: every withdrawn ID belongs to `K0`, additions have globally fresh IDs, and retained concrete occurrences are exactly unchanged.
+- Keep historical source certification separate from target-relative exact liveness. Lifting converts checked terms back to the shared raw syntax and revalidates them under the target with the same whole root boundary; never cast or silently reinterpret provenance.
 - Equality is structural proof-presentation equality. Do not add proof quotients, commuting conversions, implicit Weakening, Contraction, Mix, assembly, or Gentzen Cut.
 - Keep the raw Redex model and ordinary-Racket algorithms on the shared raw s-expression representation.
