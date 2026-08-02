@@ -14,6 +14,8 @@
 - Forest multiplication is independent commutative juxtaposition, never filling, assembly, Mix, reconstruction, or Gentzen Cut. Tensor coordinates remain ordered even though factors within each coordinate are commutative.
 - Collected coproduct coefficients forget cut-address alignment; the occurrence-level cut-witness API must continue to retain it.
 - In the collected CK coproduct, the existing empty cut contributes `1 tensor t`; add `t tensor 1` separately exactly once and never simulate either endpoint with a root cut.
+- Compute the antipode by connected vertex degree from the collected reduced coproduct. Its products are forest juxtaposition only; it is never filling, reconstruction, repair, normalization, or an inverse derivation.
+- A formal revision map kills an entire tensor basis term when any coordinate forest contains a withdrawn exact occurrence. Otherwise lift every coordinate explicitly into the revision target, preserving tensor order and degree.
 - Structural presentation equality never establishes common calculus provenance. Operational carrier, algebra, and tensor APIs require exact `eq?` calculus identity and explicit lifting across revisions.
 - The CK carrier is hereditary only because admission is local to finite concrete occurrences, exact ordered boundaries, and typed vacancies; do not broaden the claim to calculi with proof-global admission conditions. Incidence remains trusted occurrence metadata.
 - Automatic repair is only for all exact inactive occurrences of a complete historical proof when each is explicitly withdrawn, material, and nullary. A nonroot plan retains its historical CK witness and separately lifts only the retained punctured remainder into the target.
