@@ -108,13 +108,32 @@ Deletion by a manuscript-level tag or family would first need a selector that
 expands that family to exact registry IDs. No quotient-module datatype is
 implemented.
 
+Finite composable revision paths are represented without flattening their
+steps. `make-revision-chain` requires an explicit source and exact `eq?`
+agreement at every intermediate endpoint; its empty path is the identity at
+that source. `formal-revision-map-chain` applies the one-step maps in order.
+Consequently an intermediate formal zero is still transported through later
+targets, and a constructor ID withdrawn in one step cannot be confused with a
+new occurrence that legally reuses that ID in a later snapshot. The analogous
+checked through-lifts are partial on retired terms and return structured
+revision errors instead of algebraic zero.
+
+`identity-calculus-revision K` has both endpoints exactly `K`. It is distinct
+from `make-calculus-revision K '() '()`, whose target is a newly constructed,
+structurally equal snapshot. Together the one-step maps and their literal
+sequential composites form an executable action of revision paths. This does
+not turn arbitrary deletion-containing revisions into persistent inclusions;
+only addition-only steps have that interpretation.
+
 ## Executable law evidence
 
 The tests compare normalized sparse values and ordered rank-three tensors; no
 support iteration order or printed string is used as a semantic ordering. They
 cover the two counit laws, coassociativity, coproduct and counit
 multiplicativity, grading, both antipode convolution identities, and the unit,
-product, coproduct, counit, antipode, and degree laws for formal revision maps.
+product, coproduct, counit, antipode, and degree laws for formal revision maps,
+including exact identity, empty-path, one-step, and finite composite-path
+cases.
 
 A test-local one-colour generator exhausts all locally admitted nullary,
 unary, and binary rooted checked terms through four vertices:

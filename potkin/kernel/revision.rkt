@@ -8,10 +8,16 @@
 
 (provide calculus-revision?
          make-calculus-revision
+         identity-calculus-revision
          calculus-revision-source
          calculus-revision-target
          calculus-revision-withdrawn-ids
          calculus-revision-additions
+         revision-chain?
+         make-revision-chain
+         revision-chain-source
+         revision-chain-target
+         revision-chain-steps
          revision-error?
          revision-error-code
          revision-error-message
@@ -28,35 +34,78 @@
          revision-term-live?
          lift-term
          lift-context
-         lift-proof-forest)
+         lift-proof-forest
+         lift-term-through
+         lift-context-through
+         lift-proof-forest-through)
 
-;; A revision retains the source registry as historical provenance and creates
-;; a fresh target registry.  Its constructor is private so the target cannot
-;; drift from the exact (K0 minus D) plus A construction.
+;; A revision retains the source registry as historical provenance. Ordinary
+;; revision construction creates the exact fresh `(K0 minus D) plus A` target;
+;; the separately named identity constructor uses K itself at both endpoints.
+;; The representation constructor is private so neither invariant can drift.
 (struct calculus-revision (source target withdrawn-ids additions)
   #:constructor-name make-calculus-revision/internal
   #:property prop:equal+hash
   (list
    (lambda (left right recur)
      (and (calculus-revision? right)
-          (recur (calculus-revision-source left)
-                 (calculus-revision-source right))
-          (recur (calculus-revision-target left)
-                 (calculus-revision-target right))
+          (eq? (calculus-revision-source left)
+               (calculus-revision-source right))
+          (eq? (calculus-revision-target left)
+               (calculus-revision-target right))
           (recur (calculus-revision-withdrawn-ids left)
                  (calculus-revision-withdrawn-ids right))
           (recur (calculus-revision-additions left)
                  (calculus-revision-additions right))))
    (lambda (value recur)
-     (recur (list (calculus-revision-source value)
-                  (calculus-revision-target value)
-                  (calculus-revision-withdrawn-ids value)
-                  (calculus-revision-additions value))))
+     (bitwise-xor
+      (eq-hash-code (calculus-revision-source value))
+      (arithmetic-shift
+       (eq-hash-code (calculus-revision-target value)) 1)
+      (arithmetic-shift
+       (recur (calculus-revision-withdrawn-ids value)) 2)
+      (arithmetic-shift
+       (recur (calculus-revision-additions value)) 3)))
    (lambda (value recur)
-     (recur (list (calculus-revision-additions value)
-                  (calculus-revision-withdrawn-ids value)
-                  (calculus-revision-target value)
-                  (calculus-revision-source value))))))
+     (bitwise-xor
+      #x6d2b79f5
+      (arithmetic-shift
+       (eq-hash-code (calculus-revision-source value)) 3)
+      (arithmetic-shift
+       (eq-hash-code (calculus-revision-target value)) 2)
+      (arithmetic-shift
+       (recur (calculus-revision-withdrawn-ids value)) 1)
+      (recur (calculus-revision-additions value))))))
+
+;; A path retains its exact endpoints and its ordered, immutable step list.
+;; Consecutive snapshots are compared by identity, not by their structural
+;; registry presentations.
+(struct revision-chain (source target steps)
+  #:constructor-name make-revision-chain/internal
+  #:property prop:equal+hash
+  (list
+   (lambda (left right recur)
+     (and (revision-chain? right)
+          (eq? (revision-chain-source left)
+               (revision-chain-source right))
+          (eq? (revision-chain-target left)
+               (revision-chain-target right))
+          (recur (revision-chain-steps left)
+                 (revision-chain-steps right))))
+   (lambda (value recur)
+     (bitwise-xor
+      (eq-hash-code (revision-chain-source value))
+      (arithmetic-shift
+       (eq-hash-code (revision-chain-target value)) 1)
+      (arithmetic-shift (recur (revision-chain-steps value)) 2)))
+   (lambda (value recur)
+     (bitwise-xor
+      #x1b873593
+      (arithmetic-shift
+       (eq-hash-code (revision-chain-source value)) 2)
+      (arithmetic-shift
+       (eq-hash-code (revision-chain-target value)) 3)
+      (recur (revision-chain-steps value))))))
 
 (struct revision-error (code message details)
   #:constructor-name make-revision-error/internal
@@ -201,6 +250,51 @@
      (make-calculus-revision/internal
       source target canonical-withdrawals canonical-additions)]))
 
+;; Unlike `(make-calculus-revision K '() '())`, which deliberately builds a
+;; fresh structurally equal target registry, this is the exact identity arrow
+;; at K.  It is useful both directly and as a step in a revision chain.
+(define (identity-calculus-revision calculus)
+  (unless (equipped-calculus? calculus)
+    (raise-argument-error
+     'identity-calculus-revision "equipped-calculus?" calculus))
+  (make-calculus-revision/internal calculus calculus '() '()))
+
+(define (make-revision-chain source steps)
+  (unless (equipped-calculus? source)
+    (raise-argument-error
+     'make-revision-chain "equipped-calculus?" source))
+  (unless (and (list? steps) (andmap calculus-revision? steps))
+    (raise-argument-error
+     'make-revision-chain "(listof calculus-revision?)" steps))
+  ;; Copy the spine so the stored finite path is an immutable value owned by
+  ;; the chain. Standard Racket lists are immutable, but this also avoids
+  ;; retaining an incidental caller list identity.
+  (define canonical-steps
+    (for/list ([step (in-list steps)]) step))
+  (let loop ([remaining canonical-steps]
+             [expected-source source]
+             [step-index 1])
+    (cond
+      [(null? remaining)
+       (make-revision-chain/internal
+        source expected-source canonical-steps)]
+      [else
+       (define step (car remaining))
+       (define actual-source (calculus-revision-source step))
+       (if (eq? actual-source expected-source)
+           (loop (cdr remaining)
+                 (calculus-revision-target step)
+                 (add1 step-index))
+           (make-revision-error
+            'noncomposable-revision-chain
+            "every revision step must start at the exact target snapshot of its predecessor"
+            (hash 'operation 'make-revision-chain
+                  'chain-source source
+                  'step-index step-index
+                  'step step
+                  'expected-source expected-source
+                  'actual-source actual-source)))])))
+
 ;; Checked constructors are private, but historical validity is still checked
 ;; explicitly: every stored provenance must be the same registry, and replaying
 ;; the shared raw presentation in that registry must recover the same term.
@@ -291,6 +385,14 @@
 (define (revision-term-live? revision term)
   (null? (revision-liveness-diagnostics revision term)))
 
+(define (wrong-exact-source-error operation expected actual)
+  (make-revision-error
+   'wrong-source-calculus
+   "the value must carry the exact source registry of this revision path"
+   (hash 'operation operation
+         'expected-source expected
+         'actual-source actual)))
+
 (define (wrong-source-error operation revision actual)
   (make-revision-error
    'wrong-source-calculus
@@ -376,3 +478,86 @@
          (make-proof-forest
           (calculus-revision-target revision)
           lifted-factors))]))
+
+;; Through-lifts are the executable action of a finite revision path.  Empty
+;; chains return their input unchanged after the exact source check; nonempty
+;; chains deliberately use the public one-step lifting operations in order.
+(define (lift-term-through chain term)
+  (unless (revision-chain? chain)
+    (raise-argument-error
+     'lift-term-through "revision-chain?" chain))
+  (unless (checked-term? term)
+    (raise-argument-error 'lift-term-through "checked-term?" term))
+  (cond
+    [(not (eq? (checked-term-calculus term)
+               (revision-chain-source chain)))
+     (wrong-exact-source-error
+      'lift-term-through
+      (revision-chain-source chain)
+      (checked-term-calculus term))]
+    [else
+     (let loop ([current term]
+                [steps (revision-chain-steps chain)])
+       (cond
+         [(null? steps) current]
+         [else
+          (define lifted (lift-term (car steps) current))
+          (if (revision-error? lifted)
+              lifted
+              (loop lifted (cdr steps)))]))]))
+
+(define (lift-context-through chain context)
+  (unless (revision-chain? chain)
+    (raise-argument-error
+     'lift-context-through "revision-chain?" chain))
+  (unless (checked-term? context)
+    (raise-argument-error
+     'lift-context-through "checked-term?" context))
+  (cond
+    [(not (proof-context? context))
+     (make-revision-error
+      'not-context
+      "context lifting through a path requires a well-typed checked term with a puncture"
+      (hash 'operation 'lift-context-through
+            'term context))]
+    [(not (eq? (checked-term-calculus context)
+               (revision-chain-source chain)))
+     (wrong-exact-source-error
+      'lift-context-through
+      (revision-chain-source chain)
+      (checked-term-calculus context))]
+    [else
+     (let loop ([current context]
+                [steps (revision-chain-steps chain)])
+       (cond
+         [(null? steps) current]
+         [else
+          (define lifted (lift-context (car steps) current))
+          (if (revision-error? lifted)
+              lifted
+              (loop lifted (cdr steps)))]))]))
+
+(define (lift-proof-forest-through chain forest)
+  (unless (revision-chain? chain)
+    (raise-argument-error
+     'lift-proof-forest-through "revision-chain?" chain))
+  (unless (proof-forest? forest)
+    (raise-argument-error
+     'lift-proof-forest-through "proof-forest?" forest))
+  (cond
+    [(not (eq? (proof-forest-calculus forest)
+               (revision-chain-source chain)))
+     (wrong-exact-source-error
+      'lift-proof-forest-through
+      (revision-chain-source chain)
+      (proof-forest-calculus forest))]
+    [else
+     (let loop ([current forest]
+                [steps (revision-chain-steps chain)])
+       (cond
+         [(null? steps) current]
+         [else
+          (define lifted (lift-proof-forest (car steps) current))
+          (if (revision-error? lifted)
+              lifted
+              (loop lifted (cdr steps)))]))]))

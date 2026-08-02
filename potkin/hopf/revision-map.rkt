@@ -7,6 +7,7 @@
          "../kernel/revision.rkt")
 
 (provide formal-revision-map
+         formal-revision-map-chain
          revision-map-error?
          revision-map-error-code
          revision-map-error-message
@@ -19,8 +20,9 @@
 (struct revision-map-error (code message operation details)
   #:transparent)
 
-(define (make-map-error code message details)
-  (revision-map-error code message 'formal-revision-map details))
+(define (make-map-error code message details
+                        [operation 'formal-revision-map])
+  (revision-map-error code message operation details))
 
 (define (support-location-details key coefficient coordinate cause)
   (hash 'support-key key
@@ -154,3 +156,37 @@
              (loop (cdr terms)
                    (cons (cons mapped-key (cdr term))
                          mapped-terms-reversed))])]))]))
+
+;; Apply a composable revision path one step at a time. In particular, do not
+;; flatten the withdrawals and additions: an identity may be absent from an
+;; intermediate snapshot and legally reintroduced by a later step. A killed
+;; support term therefore becomes formal zero at that intermediate target and
+;; remains zero while its exact provenance advances through all later steps.
+(define (formal-revision-map-chain chain sum)
+  (unless (revision-chain? chain)
+    (raise-argument-error
+     'formal-revision-map-chain "revision-chain?" chain))
+  (unless (formal-sum? sum)
+    (raise-argument-error
+     'formal-revision-map-chain "formal-sum?" sum))
+  (define source (revision-chain-source chain))
+  (define rank (formal-sum-rank sum))
+  (cond
+    [(not (eq? (formal-sum-calculus sum) source))
+     (make-map-error
+      'wrong-source-calculus
+      "the formal value must carry the exact source calculus of the revision chain"
+      (hash 'expected-source source
+            'actual-source (formal-sum-calculus sum)
+            'rank rank)
+      'formal-revision-map-chain)]
+    [else
+     (let loop ([current sum]
+                [steps (revision-chain-steps chain)])
+       (cond
+         [(null? steps) current]
+         [else
+          (define mapped (formal-revision-map (car steps) current))
+          (if (revision-map-error? mapped)
+              mapped
+              (loop mapped (cdr steps)))]))]))

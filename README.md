@@ -14,7 +14,8 @@ The implemented slice contains:
 - typed punctures, telescopes, context composition, and complete filling;
 - commutative proof forests with block and flattened root profiles;
 - prefix-free, address-indexed CK cut witnesses and lazy cut enumeration;
-- immutable compatible calculus revisions, exact liveness diagnostics, and checked lifting;
+- immutable compatible calculus revisions, exact identity revisions,
+  composable revision paths, exact liveness diagnostics, and checked lifting;
 - explicit basis-level constructor deletion for terms and proof forests;
 - exact repair plans for withdrawn nullary material grounds, including the separate whole-proof endpoint;
 - immutable finite sparse sums over the integers, with rank-one proof-forest
@@ -24,7 +25,8 @@ The implemented slice contains:
   positive-vertex trees, together with its counit and vertex grading;
 - the connected-graded antipode and both convolution identities;
 - total componentwise formal maps for exact-ID constructor deletion and
-  persistent calculus additions;
+  persistent calculus additions, together with their sequential action along
+  exact revision paths;
 - exact Hopf-law and revision-naturality checks over a bounded exhaustive
   locally admitted fixture; and
 - the preserved standard Redex smoke example and test.
