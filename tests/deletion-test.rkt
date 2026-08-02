@@ -284,3 +284,19 @@
 (check-equal? (revision-error-code wrong-source-empty-result)
               'wrong-source-calculus)
 (check-false (algebraic-zero? wrong-source-empty-result))
+
+;; A typed nodeless identity context is a kernel context, not a positive-vertex
+;; constructor-deletion basis value. This domain error is neither additive
+;; zero nor a surviving basis element.
+(for ([box (in-list (list (identity-context K0 S)
+                          (identity-context K0 T)))])
+  (define result (constructor-delete identity-revision box))
+  (check-true (deletion-domain-error? result))
+  (check-equal? (deletion-domain-error-code result)
+                'not-positive-vertex-basis)
+  (check-true (string? (deletion-domain-error-message result)))
+  (check-false (string=? (deletion-domain-error-message result) ""))
+  (check-true (hash? (deletion-domain-error-details result)))
+  (check-false (survivor? result))
+  (check-false (algebraic-zero? result))
+  (check-false (revision-error? result)))

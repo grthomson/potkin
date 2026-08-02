@@ -66,9 +66,13 @@
 ;; one-hole context, producing the prefixed telescope (1 1), (2 1).
 (define S-wrap-occ
   (make-concrete-occurrence 'S-wrap (list S) S #:kind 'logical))
+(define extended-revision
+  (make-calculus-revision running-calculus '() (list S-wrap-occ)))
 (define extended-calculus
-  (make-equipped-calculus
-   (append (calculus-occurrences running-calculus) (list S-wrap-occ))))
+  (calculus-revision-target extended-revision))
+(define bS-proof/extended (lift-term extended-revision bS-proof))
+(define bS-prime-proof/extended
+  (lift-term extended-revision bS-prime-proof))
 (define outer-a (corolla extended-calculus a-occ))
 (define S-wrap (corolla extended-calculus S-wrap-occ))
 (define twice-refined (context-compose outer-a (list S-wrap S-wrap)))
@@ -77,12 +81,13 @@
                    (premise-telescope twice-refined))
               (list S S))
 (define outer-then-inner
-  (complete-fill twice-refined (list bS-proof bS-prime-proof)))
+  (complete-fill twice-refined
+                 (list bS-proof/extended bS-prime-proof/extended)))
 (define inner-then-outer
   (context-compose
    outer-a
-   (list (complete-fill S-wrap (list bS-proof))
-         (complete-fill S-wrap (list bS-prime-proof)))))
+   (list (complete-fill S-wrap (list bS-proof/extended))
+         (complete-fill S-wrap (list bS-prime-proof/extended)))))
 (check-equal? outer-then-inner inner-then-outer)
 
 ;; Box is a two-sided typed identity for context composition.
@@ -94,12 +99,24 @@
                                      identity-S/extended))
               outer-a)
 
-;; Registry provenance is an admission check, not part of presentation
-;; equality: the same tree remains the same when rechecked in an extension.
+;; Extensional registry admission and presentation equality do not establish
+;; exact checked provenance. Operational composition requires an explicit
+;; lift into the extension snapshot.
 (define running-proof/extended
-  (validate-candidate extended-calculus running-raw #:expected U))
+  (lift-term extended-revision running-proof))
 (check-equal? running-proof running-proof/extended)
 (check-true (term-admitted-by? extended-calculus running-proof))
+(check-false
+ (checked-term-has-exact-calculus? running-proof extended-calculus))
+(define cross-snapshot-insertion
+  (context-insert identity-S/extended '() bS-proof))
+(check-true (context-error? cross-snapshot-insertion))
+(check-equal? (context-error-code cross-snapshot-insertion)
+              'wrong-calculus-provenance)
+(check-true (eq? (context-error-expected cross-snapshot-insertion)
+                 extended-calculus))
+(check-true (eq? (context-error-actual cross-snapshot-insertion)
+                 running-calculus))
 
 ;; Insertions at independent punctures commute.
 (define S-then-T
@@ -159,8 +176,8 @@
                (complete-fill identity-S (list m-corolla)))
               'incomplete-filler)
 
-;; Root-boundary equality alone is insufficient: the target registry must
-;; admit every occurrence of a replacement proof.
+;; Root-boundary equality alone is insufficient: a replacement must first
+;; carry the exact context snapshot, before extensional admission is relevant.
 (define foreign-bS-occ
   (make-concrete-occurrence 'foreign-bS '() S #:kind 'material))
 (define foreign-calculus (make-equipped-calculus (list foreign-bS-occ)))
@@ -169,7 +186,7 @@
 (check-equal?
  (context-error-code
   (complete-fill identity-S (list foreign-bS-proof)))
- 'unadmitted-replacement)
+  'wrong-calculus-provenance)
 
 ;; Open typing is registry-relative but does not search for a filler.
 (define needs-S-occ

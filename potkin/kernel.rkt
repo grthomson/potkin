@@ -1,5 +1,7 @@
 #lang racket
 
+;; Public facade for the checked kernel and its exact-provenance operations.
+
 (require "kernel/boundary.rkt"
          "kernel/calculus.rkt"
          "kernel/syntax.rkt"

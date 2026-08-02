@@ -67,30 +67,22 @@
   (unless (and (list? factors) (andmap checked-node? factors))
     (raise-argument-error
      'make-proof-forest "(listof checked-node?)" factors))
-  (define normalized-factors
-    (for/list ([factor (in-list factors)])
-      (unless (term-admitted-by? calculus factor)
-        (raise-arguments-error
-         'make-proof-forest
-         "every connected factor must be admitted by the forest calculus"
-         "factor" factor))
-      ;; Recheck under the selected registry so extracted factors carry the
-      ;; same operational provenance reported by the forest.
-      (define normalized
-        (validate-candidate
-         calculus
-         (checked-term->raw factor)
-         #:expected (derivation-root-boundary factor)))
-      (when (validation-error? normalized)
-        (raise-arguments-error
-         'make-proof-forest
-         "rechecking an admitted connected factor unexpectedly failed"
-         "factor" factor
-         "validation error" normalized))
-      normalized))
+  (for ([factor (in-list factors)])
+    (unless (checked-term-has-exact-calculus? factor calculus)
+      (raise-arguments-error
+       'make-proof-forest
+       "every connected factor must carry the exact forest calculus snapshot"
+       "forest calculus" calculus
+       "factor calculus" (checked-term-calculus factor)
+       "factor" factor))
+    (unless (term-admitted-by? calculus factor)
+      (raise-arguments-error
+       'make-proof-forest
+       "every connected factor must be admitted by the forest calculus"
+       "factor" factor)))
   (make-proof-forest/internal
    calculus
-   (for/fold ([counts (hash)]) ([factor (in-list normalized-factors)])
+   (for/fold ([counts (hash)]) ([factor (in-list factors)])
      (hash-update counts factor add1 0))))
 
 (define (empty-proof-forest calculus)
@@ -112,6 +104,15 @@
     (raise-argument-error 'proof-forest-count "proof-forest?" forest))
   (unless (checked-node? factor)
     (raise-argument-error 'proof-forest-count "checked-node?" factor))
+  (unless (checked-term-has-exact-calculus?
+           factor
+           (proof-forest-calculus forest))
+    (raise-arguments-error
+     'proof-forest-count
+     "the queried factor must carry the exact forest calculus snapshot"
+     "forest calculus" (proof-forest-calculus forest)
+     "factor calculus" (checked-term-calculus factor)
+     "factor" factor))
   (hash-ref (proof-forest-counts forest) factor 0))
 
 ;; The order of this expanded view is deliberately unspecified. It is for
@@ -130,8 +131,8 @@
   (for ([forest (in-list remaining-forests)])
     (unless (proof-forest? forest)
       (raise-argument-error 'forest-union "proof-forest?" forest))
-    (unless (equal? (proof-forest-calculus first-forest)
-                    (proof-forest-calculus forest))
+    (unless (eq? (proof-forest-calculus first-forest)
+                 (proof-forest-calculus forest))
       (raise-arguments-error
        'forest-union
        "forest multiplication is defined within one equipped calculus"

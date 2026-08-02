@@ -136,6 +136,8 @@
      (puncture-requirement term address))))
 
 (define (term-admitted-by? calculus term)
+  ;; This is deliberately extensional registry admission. It does not assert
+  ;; that term carries calculus as its exact checked provenance.
   (and (equipped-calculus? calculus)
        (checked-term? term)
        (cond
@@ -184,14 +186,28 @@
      (make-context-error
       'not-a-puncture
       "context insertion targets a vacant premise, not a vertex"
-      #:address address
-      #:actual selected)]
+       #:address address
+       #:actual selected)]
     [else
-     (define expected (puncture-requirement context address))
-     (define actual (derivation-root-boundary replacement))
-     (define calculus (checked-term-calculus context))
-     (cond
-       [(not (equal? expected actual))
+      (define expected (puncture-requirement context address))
+      (define actual (derivation-root-boundary replacement))
+      (define calculus (checked-term-calculus context))
+      (cond
+        [(not (checked-term-has-exact-calculus? context calculus))
+         (make-context-error
+          'wrong-calculus-provenance
+          "the context must carry one exact calculus snapshot throughout"
+          #:address address
+          #:expected calculus
+          #:actual (checked-term-calculus context))]
+        [(not (checked-term-has-exact-calculus? replacement calculus))
+         (make-context-error
+          'wrong-calculus-provenance
+          "context insertion requires explicit lifting into the context calculus"
+          #:address address
+          #:expected calculus
+          #:actual (checked-term-calculus replacement))]
+        [(not (equal? expected actual))
         (make-context-error
          'wrong-boundary
          "the replacement root does not match the puncture requirement"

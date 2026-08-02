@@ -13,6 +13,10 @@
          algebraic-zero?
          algebraic-zero-historical-source
          algebraic-zero-offenses
+         deletion-domain-error?
+         deletion-domain-error-code
+         deletion-domain-error-message
+         deletion-domain-error-details
          constructor-offense?
          constructor-offense-factor
          constructor-offense-address
@@ -50,6 +54,29 @@
    (lambda (value recur)
      (recur (list (algebraic-zero-offenses value)
                   (algebraic-zero-historical-source value))))))
+
+;; A typed nodeless context is a valid kernel value but not a positive-vertex
+;; Hopf basis tree. Keep this domain failure distinct from algebraic zero.
+(struct deletion-domain-error (code message details)
+  #:constructor-name make-deletion-domain-error/internal
+  #:property prop:equal+hash
+  (list
+   (lambda (left right recur)
+     (and (deletion-domain-error? right)
+          (recur (deletion-domain-error-code left)
+                 (deletion-domain-error-code right))
+          (recur (deletion-domain-error-message left)
+                 (deletion-domain-error-message right))
+          (recur (deletion-domain-error-details left)
+                 (deletion-domain-error-details right))))
+   (lambda (value recur)
+     (recur (list (deletion-domain-error-code value)
+                  (deletion-domain-error-message value)
+                  (deletion-domain-error-details value))))
+   (lambda (value recur)
+     (recur (list (deletion-domain-error-details value)
+                  (deletion-domain-error-message value)
+                  (deletion-domain-error-code value))))))
 
 ;; Addresses are local to the displayed connected factor.  A connected term
 ;; is its own factor with multiplicity one.  For a commutative forest, equal
@@ -128,14 +155,14 @@
 
 (define (basis-calculus value)
   (cond
-    [(checked-term? value) (checked-term-calculus value)]
+    [(checked-node? value) (checked-term-calculus value)]
     [(proof-forest? value) (proof-forest-calculus value)]))
 
 (define (propagate-domain-error revision value)
   ;; The lifting operations own the structured diagnostics for wrong source
   ;; provenance and historical invalidity, so deletion returns those same
   ;; revision-error values instead of confusing misuse with algebraic zero.
-  (if (checked-term? value)
+  (if (checked-node? value)
       (lift-term revision value)
       (lift-proof-forest revision value)))
 
@@ -155,9 +182,15 @@
 
   (define source (calculus-revision-source revision))
   (cond
+    [(checked-hole? value)
+     (make-deletion-domain-error/internal
+      'not-positive-vertex-basis
+      "constructor deletion is defined on positive-vertex checked nodes and proof forests"
+      (hash 'value value
+            'calculus (checked-term-calculus value)))]
     [(not (eq? (basis-calculus value) source))
      (propagate-domain-error revision value)]
-    [(and (checked-term? value)
+    [(and (checked-node? value)
           (not (term-historically-valid? value)))
      (propagate-domain-error revision value)]
     [(and (proof-forest? value)
@@ -169,7 +202,7 @@
        (lift-term revision invalid-factor))]
     [else
      (define offenses
-       (if (checked-term? value)
+       (if (checked-node? value)
            (term-offenses revision value)
            (forest-offenses revision value)))
      (cond
@@ -177,7 +210,7 @@
         (make-algebraic-zero/internal value offenses)]
        [else
         (define lifted
-          (if (checked-term? value)
+          (if (checked-node? value)
               (lift-term revision value)
               (lift-proof-forest revision value)))
         (if (revision-error? lifted)

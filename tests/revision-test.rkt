@@ -227,7 +227,10 @@
 (check-true (proof-forest? retained-forest/K1))
 (check-equal? retained-forest/K1 retained-forest/K0)
 (check-equal? (proof-forest-size retained-forest/K1) 3)
-(check-equal? (proof-forest-count retained-forest/K1 retained-proof) 2)
+(check-equal? (proof-forest-count retained-forest/K1 lifted-retained) 2)
+(check-exn exn:fail:contract?
+           (lambda ()
+             (proof-forest-count retained-forest/K1 retained-proof)))
 (check-true (eq? (proof-forest-calculus retained-forest/K1) K1))
 (for ([factor (in-list (proof-forest-factors retained-forest/K1))])
   (check-true (eq? (checked-term-calculus factor) K1)))

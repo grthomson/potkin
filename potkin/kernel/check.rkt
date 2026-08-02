@@ -15,6 +15,7 @@
          checked-hole-boundary
          checked-term?
          checked-term-calculus
+         checked-term-has-exact-calculus?
          validate-candidate
          validation-error?
          validation-error-code
@@ -70,6 +71,18 @@
     [(checked-node? term) (checked-node-calculus term)]
     [(checked-hole? term) (checked-hole-calculus term)]
     [else (raise-argument-error 'checked-term-calculus "checked-term?" term)]))
+
+;; Presentation equality deliberately omits registry provenance. Operational
+;; carrier checks use this separate recursive predicate to require one exact
+;; immutable calculus snapshot throughout a checked term.
+(define (checked-term-has-exact-calculus? term calculus)
+  (and (checked-term? term)
+       (equipped-calculus? calculus)
+       (eq? (checked-term-calculus term) calculus)
+       (or (checked-hole? term)
+           (andmap (lambda (child)
+                     (checked-term-has-exact-calculus? child calculus))
+                   (checked-node-children term)))))
 
 (define (validation-success? value)
   (checked-term? value))

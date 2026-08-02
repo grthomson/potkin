@@ -312,11 +312,18 @@
                                                (list bT-proof)))
               separate-forest)
 
+(define forest-extension-revision
+  (make-calculus-revision running-calculus '() (list chain-occ)))
 (define forest-extension
-  (make-equipped-calculus
-   (append (calculus-occurrences running-calculus) (list chain-occ))))
+  (calculus-revision-target forest-extension-revision))
+(check-exn exn:fail:contract?
+           (lambda ()
+             (make-proof-forest forest-extension (list running-proof))))
+(define running-proof/forest-extension
+  (lift-term forest-extension-revision running-proof))
 (define rehomed-running-forest
-  (make-proof-forest forest-extension (list running-proof)))
+  (make-proof-forest forest-extension
+                     (list running-proof/forest-extension)))
 (check-true
  (eq? (checked-term-calculus
        (first (proof-forest-factors rehomed-running-forest)))
