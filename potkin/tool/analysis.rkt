@@ -3,6 +3,7 @@
 (require racket/list
          "../algebra/formal-sum.rkt"
          "../analysis/ancestry.rkt"
+         "../analysis/component-trace.rkt"
          "../analysis/convolution.rkt"
          "../dsl/term.rkt"
          "../hopf/antipode.rkt"
@@ -20,7 +21,9 @@
          (struct-out law-check)
          (struct-out hopf-law-analysis)
          (struct-out derivation-analysis)
+         derivation-analysis-component-analysis
          (struct-out context-analysis)
+         context-analysis-component-analysis
          (struct-out forest-analysis)
          analyze-derivation
          analyze-context
@@ -84,13 +87,41 @@
    hopf-laws
    limit)
   #:transparent)
+(struct enriched-derivation-analysis derivation-analysis
+  (component-analysis)
+  #:transparent)
 (struct context-analysis
   (source root interface vertex-count puncture-telescope connected)
+  #:transparent)
+(struct enriched-context-analysis context-analysis
+  (component-analysis)
   #:transparent)
 (struct forest-analysis
   (source size degree basis coproduct reduced-coproduct counit antipode
           hopf-laws limit)
   #:transparent)
+
+(define (derivation-analysis-component-analysis value)
+  (unless (derivation-analysis? value)
+    (raise-argument-error
+     'derivation-analysis-component-analysis "derivation-analysis?" value))
+  (if (enriched-derivation-analysis? value)
+      (enriched-derivation-analysis-component-analysis value)
+      (component-analysis-unavailable
+       'not-attached
+       (hash 'message
+             "this report was built directly with the compatibility constructor"))))
+
+(define (context-analysis-component-analysis value)
+  (unless (context-analysis? value)
+    (raise-argument-error
+     'context-analysis-component-analysis "context-analysis?" value))
+  (if (enriched-context-analysis? value)
+      (enriched-context-analysis-component-analysis value)
+      (component-analysis-unavailable
+       'not-attached
+       (hash 'message
+             "this report was built directly with the compatibility constructor"))))
 
 (define (check-analysis-limit who limit)
   (unless (or (not limit) (exact-nonnegative-integer? limit))
@@ -521,7 +552,7 @@
         (linear-extension-count ancestry #:limit limit)))
   (define degree (derivation-vertex-count term))
 
-  (derivation-analysis
+  (enriched-derivation-analysis
    term
    (derivation-root-boundary term)
    (complete-proof? term)
@@ -561,24 +592,30 @@
    orders
    (if (list? orders) (length orders) orders)
    (check-hopf-laws term #:limit limit)
-   limit))
+   limit
+   (component-analysis-of term #:profile-limit limit)))
 
 (define (analyze-context context #:limit [limit analysis-default-limit])
   (unless (proof-context? context)
     (raise-argument-error 'analyze-context "proof-context?" context))
   (check-analysis-limit 'analyze-context limit)
-  (context-analysis
+  (define connected
+    (if (checked-node? context)
+        (analyze-derivation context #:limit limit)
+        (analysis-unavailable
+         'nodeless-box
+         (hash 'message
+               "Box is a typed context identity, not a Hopf generator"))))
+  (enriched-context-analysis
    context
    (derivation-root-boundary context)
    (context-interface-of context)
    (derivation-vertex-count context)
    (premise-telescope context)
-   (if (checked-node? context)
-       (analyze-derivation context #:limit limit)
-       (analysis-unavailable
-        'nodeless-box
-        (hash 'message
-              "Box is a typed context identity, not a Hopf generator")))))
+   connected
+   (if (derivation-analysis? connected)
+       (derivation-analysis-component-analysis connected)
+       (component-analysis-of context #:profile-limit limit))))
 
 (define (analyze-forest forest #:limit [limit analysis-default-limit])
   (unless (proof-forest? forest)

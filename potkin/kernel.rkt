@@ -3,6 +3,7 @@
 ;; Public facade for the checked kernel and its exact-provenance operations.
 
 (require "kernel/boundary.rkt"
+         "kernel/component-incidence.rkt"
          "kernel/calculus.rkt"
          "kernel/syntax.rkt"
          "kernel/check.rkt"
@@ -14,6 +15,7 @@
          "kernel/repair.rkt")
 
 (provide (all-from-out "kernel/boundary.rkt")
+         (all-from-out "kernel/component-incidence.rkt")
          (all-from-out "kernel/calculus.rkt")
          (all-from-out "kernel/syntax.rkt")
          (all-from-out "kernel/check.rkt")

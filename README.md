@@ -15,6 +15,10 @@ The implemented slice contains:
   selection, derived context interfaces, addressed context composition,
   backward refinement, and checked filling/extraction points;
 - canonical multiset sequent and hypersequent boundaries;
+- sealed component-incidence relations whose ordered-premise and local
+  component endpoints are validated against one concrete occurrence profile,
+  while absent and legacy opaque payloads remain admitted but explicitly
+  unanalyzable;
 - immutable equipped-calculus registries of concrete occurrences;
 - a shared raw syntax with independent Redex and ordinary-Racket checkers;
 - typed punctures, telescopes, context composition, and complete filling;
@@ -35,6 +39,9 @@ The implemented slice contains:
 - address-resolved premise ancestry, explicit empty/proper/whole cut choices,
   ancestry ideals, cut polynomials, causal width, root-first refinement
   orders, iterated coproducts, and independently checked convolution counts;
+- address-resolved component traces for open contexts, local relational
+  classifications and scalar structural defects, and nonempty-cut
+  CK-resolved component profiles with exact detached alignment;
 - immutable finite-input derivation, context, forest, and Hopf-law reports
   with deterministic structural rendering and explicit analysis limits;
 - the connected-graded antipode and both convolution identities;
@@ -63,15 +70,15 @@ potkin/
   model.rkt       Redex language and judgments (plus preserved smoke model)
   model/          Redex static kernel
   kernel.rkt      Ordinary-Racket public facade
-  kernel/         Boundaries, checking, contexts, forests, and CK cuts
+  kernel/         Boundaries, component incidence, checking, contexts, forests, and CK cuts
   algebra.rkt     Integral formal-sum public facade
   algebra/        Sparse forest and ordered-tensor sums
   hopf.rkt        Integral CK Hopf public facade
   hopf/           Coproduct, rooted operations, antipode, and revision maps
   dsl.rkt         Finite declaration EDSL public facade
   dsl/            Declarations, checked proof terms, contexts, and filling points
-  analysis.rkt    Premise-ancestry and convolution-analysis public facade
-  analysis/       Causal ideals, refinement orders, and exact bounded counts
+  analysis.rkt    Component-trace, premise-ancestry, and convolution facade
+  analysis/       Component profiles, causal ideals, orders, and bounded counts
   tool.rkt        Deterministic research-report public facade
   tool/           Immutable reports and structural presentation
   main.rkt        Public package entry point
@@ -81,6 +88,7 @@ examples/
   dsl-running-factorisation.rkt
   dsl-open-context.rkt
   dsl-hypersequent.rkt
+  dsl-communication-assembly.rkt
 tests/
   smoke-test.rkt  Preserved installation smoke test
 ```
@@ -98,6 +106,7 @@ From PowerShell:
 & 'C:\Program Files\Racket\racket.exe' -S . examples\dsl-running-factorisation.rkt
 & 'C:\Program Files\Racket\racket.exe' -S . examples\dsl-open-context.rkt
 & 'C:\Program Files\Racket\racket.exe' -S . examples\dsl-hypersequent.rkt
+& 'C:\Program Files\Racket\racket.exe' -S . examples\dsl-communication-assembly.rkt
 & 'C:\Program Files\Racket\raco.exe' test tests\smoke-test.rkt
 & 'C:\Program Files\Racket\raco.exe' test -j 4 .
 ```
@@ -175,6 +184,27 @@ Formula constructors still produce ordinary immutable symbolic data, and
 fixed decorations only; they do not generate schematic rule instances.
 Application heads and leaves in declarative terms are lexical concrete-
 occurrence bindings; `_` is the sole puncture form.
+
+`make-component-incidence` supplies a finite relation only after validating
+every `(premise slot, source component, target component)` edge against the
+declared occurrence boundaries. Its predicates distinguish functionality,
+inverse functionality, totality, and surjectivity, and hence splitting,
+merger, erasure, and unsupported creation. Legacy `#:incidence` data remain
+valid registry metadata, but component analysis reports them as unknown
+rather than silently reading them as the empty relation. The separate
+implementation fields `instance` and `incidence` are two stored parts of the
+manuscript's fully instantiated occurrence data, not independent semantic
+decorations.
+
+`component-trace-of` composes supplied local relations from addressed
+punctures to the root. `component-profiles-of` enriches each nonempty CK cut
+with the address-aligned detached tuple, retained context, component
+frontier, trace, and reconstruction. See
+`examples/dsl-communication-assembly.rkt` for two proofs with the same
+binary CK tree and detached immediate-premise forest but different supplied
+component action: nondegenerate Communication has `K_2,2`, while connected
+bar-assembly has a disjoint-union bijection. Neither relation asserts any
+formula-occurrence incidence.
 
 The running report keeps five occurrence-level CK witnesses distinct from
 the six collected coproduct terms.  It also shows the final-corolla tensor,

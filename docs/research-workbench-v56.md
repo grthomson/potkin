@@ -10,11 +10,11 @@ The intended workflow is:
 
 ```text
 finite formula and rule declarations
-  -> fully instantiated concrete occurrences
+  -> fully instantiated concrete occurrences with supplied or opaque incidence
   -> one immutable equipped-calculus registry
   -> declarative complete or open checked terms
   -> typed context/filling operations
-  -> rooted CK and causal analyses
+  -> rooted CK, component-frontier, and causal analyses
   -> immutable reports and deterministic data
 ```
 
@@ -33,11 +33,18 @@ second formula AST nor calculus provenance.  `seq` and `hseq` build the
 kernel's canonical finite multisets.  Exchange is canonical while formula
 and displayed-component multiplicity is retained.
 
-A rule signature declares only fixed tag, kind, and arity decorations.  Each
+A rule signature declares only fixed tag, kind, and arity decorations. Each
 `define-occurrence` remains a fully instantiated concrete occurrence with an
 exact ID, ordered whole-hypersequent premises, conclusion, instance, and
-optional opaque incidence.  `define-calculus` validates those declarations
-and returns an ordinary immutable equipped-calculus registry.
+incidence field. A sealed value built by `make-component-incidence` is
+recognised as a known component relation only after every edge is validated
+against the exact premise slot and local source/target component indices.
+Other deeply immutable incidence payloads remain admitted for compatibility,
+but are reported as unknown rather than as empty relations. `define-calculus`
+validates those declarations and returns an ordinary immutable equipped-
+calculus registry. The separate `instance` and `incidence` fields store two
+implementation parts of the occurrence's fully instantiated `theta`; they
+are not independent mathematical decorations.
 
 Declarative terms select lexical concrete-occurrence bindings, never tags or
 schematic rules.  `_` compiles to the existing raw puncture, applications
@@ -75,6 +82,64 @@ backward-refinement round trip.  See `examples/dsl-hypersequent.rkt` for a
 genuinely multi-component whole boundary containing both repeated formulae
 and repeated displayed components.
 
+## Component incidence, traces, and CK frontiers
+
+`make-component-edge` names an ordered premise slot, a source component
+occurrence in that exact premise boundary, and a target component occurrence
+in the conclusion. `make-component-incidence` stores the exact endpoints and
+canonicalises its edges as a set. Equal displayed components remain
+separately addressable through the indices returned by
+`hypersequent-components`; those indices are canonical local presentation
+indices, not a completed coherent-reindexing mechanism.
+
+For a known relation, the public predicates report functionality,
+inverse-functionality, totality, and surjectivity. Their complements expose
+component-level splitting, merger, erasure, and unsupported creation. These
+facts are not inferred from a rule name, tag, or kind. They make no claim
+about formula-occurrence copying, erasure, discharge, or pairing.
+
+`component-trace-of` computes the relation from addressed open inputs to root
+components. `Box^G` gives the identity relation. At a rule vertex, child
+traces are combined by ordered premise slot and composed with the supplied
+local relation. `component-trace-compose` implements the same law for one
+addressed insertion: a source at address `q` in a context inserted at `p`
+becomes `p ++ q`. If a relevant puncture-to-root path contains legacy opaque
+incidence, the result retains its typed domain and codomain but is explicitly
+unavailable with the blocking vertex addresses. Complete subproofs have no
+external input domain; their local relations remain visible in the vertex
+table rather than being guessed from an empty net trace.
+
+`component-profiles-of` enriches every nonempty admissible CK cut of a
+connected complete proof. Each `ck-component-profile` retains its existing
+witness, sorted addresses, address-aligned detached tuple, puncture telescope,
+retained context, addressed component frontier, root-component codomain,
+composite trace, and reconstruction. The empty witness remains in the
+ordinary witness report but is not a component profile. There is no root-cut
+profile and no profile for the algebraic `t tensor 1` endpoint. The full
+immediate-child profile of a positive-arity final occurrence recovers its
+declared local relation under the literal premise-slot/address
+identification.
+
+An explicitly successful lift through a persistent calculus addition keeps
+the old raw tree, cut addresses, retained occurrences, and typed relations,
+so its component profiles agree at the canonical local indices. If an
+occurrence used by the proof is withdrawn, lifting fails and the workbench
+makes no target-profile claim for that dead historical proof.
+
+Scalar calibration is separate. `occurrence-proof-factor-defect` computes
+`1 - arity`; `occurrence-hypersequent-defect` computes the conclusion breadth
+minus total premise breadth. `derivation-scalar-analysis` checks both Euler
+telescoping identities against the root boundary and puncture telescope.
+Equal scalar pairs do not imply equal component action.
+
+The dedicated `examples/dsl-communication-assembly.rkt` fixture makes this
+last distinction explicit. Nondegenerate Communication and connected
+bar-assembly use the same two premise proofs, have the same binary CK shape,
+immediate cut addresses, detached forest, and final scalar pair `(-1,0)`.
+Their roots and retained corollas remain different. Communication supplies
+the component relation `K_2,2`, while assembly supplies the disjoint-union
+bijection; neither is inferred or treated as forest multiplication.
+
 ## Reports
 
 The stable inspection entry points are:
@@ -96,6 +161,11 @@ slots, puncture telescope, occurrence-level CK witnesses and their
 reconstruction status, and the collected Hopf values.  When applicable it
 also includes the final-corolla factorization, cut polynomial, premise
 ancestry, ideals, width, schedule counts, and finite-input law checks.
+Its nested `component-analysis` separately records the address-indexed local
+relations and classifications, scalar defects and Euler checks, net context
+trace, and nonempty-cut CK profile family. Component profile enumeration uses
+the report's finite analysis budget and reports an explicit limit result
+rather than silently truncating the family.
 
 Witnesses and collected algebra deliberately remain separate.  For the
 running proof
@@ -173,13 +243,16 @@ an explicit `#:limit #f` opt-in for callers who accept its cost.
 This workbench analyzes exact finite proof presentations.  It does not add
 proof search, automatic hole filling, rule schemata, metavariable
 substitution, unification, proof quotients, commuting conversions, implicit
-Weakening/Contraction/Mix, assembly, or Gentzen Cut.  It also does not infer
-component action, Communication profiles, splitting, merger, erasure, or
-unsupported creation from opaque incidence metadata.
+Weakening/Contraction/Mix, assembly, or Gentzen Cut. Component relations and
+Communication profiles are supplied and endpoint-validated, not inferred;
+opaque incidence remains possible but unanalyzable. Classification of a
+component relation does not implement formula-occurrence incidence or a
+Communication reduction.
 
 Also deferred are a custom `#lang potkin`, a command-line interface, GUI,
 JSON/project persistence, dependent-type migration, a proof-assistant
 companion, formula/resource substitution polynomials, completed Green or
 Faà di Bruno series, coherent component reindexing, arbitrary coideal search,
+formula-occurrence incidence, protected-input coactions or residues,
 normalization and Cut elimination, coefficient rings other than the integers,
 and additional repair-frontier machinery.

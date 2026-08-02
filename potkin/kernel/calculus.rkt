@@ -1,7 +1,8 @@
 #lang racket/base
 
 (require racket/list
-         "boundary.rkt")
+         "boundary.rkt"
+         "component-incidence.rkt")
 
 (provide concrete-occurrence?
          make-concrete-occurrence
@@ -118,11 +119,23 @@
      'make-concrete-occurrence
      "instance data must be deeply immutable symbolic data"
      "instance" instance))
-  (unless (immutable-registry-datum? incidence)
+  (unless (or (component-incidence? incidence)
+              (immutable-registry-datum? incidence))
     (raise-arguments-error
      'make-concrete-occurrence
-     "incidence data must be deeply immutable symbolic data"
+     "incidence data must be a validated component relation or deeply immutable opaque data"
      "incidence" incidence))
+  (when (and (component-incidence? incidence)
+             (not
+              (component-incidence-matches-profile?
+               incidence premises conclusion)))
+    (raise-arguments-error
+     'make-concrete-occurrence
+     "the validated component relation belongs to a different occurrence profile"
+     "occurrence premises" premises
+     "occurrence conclusion" conclusion
+     "incidence premises" (component-incidence-premises incidence)
+     "incidence conclusion" (component-incidence-conclusion incidence)))
   (make-concrete-occurrence/internal
    id
    kind

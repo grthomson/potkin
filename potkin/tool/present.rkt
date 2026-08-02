@@ -4,6 +4,7 @@
          racket/pretty
          "../algebra/formal-sum.rkt"
          "../analysis/ancestry.rkt"
+         "../analysis/component-trace.rkt"
          "../dsl/term.rkt"
          "../hopf/antipode.rkt"
          "../hopf/ck.rkt"
@@ -11,6 +12,7 @@
          "../kernel/boundary.rkt"
          "../kernel/calculus.rkt"
          "../kernel/check.rkt"
+         "../kernel/component-incidence.rkt"
          "../kernel/context.rkt"
          "../kernel/cut.rkt"
          "analysis.rkt")
@@ -295,6 +297,245 @@
               (checked-term->datum (cut-analysis-remainder cut)))
         (list 'reconstructs? (cut-analysis-reconstructs? cut))))
 
+(define (component-occurrence->datum value)
+  (list 'component
+        (component-occurrence-index value)
+        (sequent->datum (component-occurrence-sequent value))))
+
+(define (addressed-component->datum value)
+  (list 'addressed-component
+        (list 'address (addressed-component-address value))
+        (component-occurrence->datum
+         (addressed-component-component value))))
+
+(define (component-incidence->datum value)
+  (list
+   'component-incidence
+   (list*
+    'ordered-premises
+    (map hypersequent->datum (component-incidence-premises value)))
+   (list 'conclusion
+         (hypersequent->datum (component-incidence-conclusion value)))
+   (list*
+    'edges
+    (for/list ([edge (in-list (component-incidence-edges value))])
+      (list 'edge
+            (list 'premise-slot
+                  (component-edge-premise-slot edge))
+            (list 'source-component
+                  (component-edge-source-index edge))
+            (list 'target-component
+                  (component-edge-target-index edge)))))))
+
+(define (component-analysis-unavailable->datum value)
+  (list 'component-analysis-unavailable
+        (list 'reason (component-analysis-unavailable-reason value))
+        (list 'details
+              (structured-hash->datum
+               (component-analysis-unavailable-details value)))))
+
+(define (component-trace-blocker->datum value)
+  (list 'opaque-vertex
+        (list 'address (component-trace-blocker-address value))
+        (list 'occurrence-id
+              (component-trace-blocker-occurrence-id value))))
+
+(define (component-trace-input->datum value)
+  (list 'input
+        (list 'puncture-address (component-trace-input-address value))
+        (list 'requirement
+              (hypersequent->datum
+               (component-trace-input-boundary value)))))
+
+(define (component-trace-edge->datum value)
+  (list 'edge
+        (addressed-component->datum
+         (component-trace-edge-source value))
+        (list 'target
+              (component-occurrence->datum
+               (component-trace-edge-target value)))))
+
+(define (component-trace->datum value)
+  (list
+   'component-trace
+   (list 'status 'known)
+   (list*
+    'inputs
+    (map component-trace-input->datum (component-trace-inputs value)))
+   (list*
+    'source-universe
+    (map addressed-component->datum (component-trace-sources value)))
+   (list 'output (hypersequent->datum (component-trace-output value)))
+   (list*
+    'target-universe
+    (map component-occurrence->datum (component-trace-targets value)))
+   (list*
+    'edges
+    (map component-trace-edge->datum
+         (sort (component-trace-edges value)
+               (lambda (left right)
+                 (define left-source
+                   (component-trace-edge-source left))
+                 (define right-source
+                   (component-trace-edge-source right))
+                 (define left-address
+                   (addressed-component-address left-source))
+                 (define right-address
+                   (addressed-component-address right-source))
+                 (cond
+                   [(not (equal? left-address right-address))
+                    (address<? left-address right-address)]
+                   [(not
+                     (= (component-occurrence-index
+                         (addressed-component-component left-source))
+                        (component-occurrence-index
+                         (addressed-component-component right-source))))
+                    (< (component-occurrence-index
+                        (addressed-component-component left-source))
+                       (component-occurrence-index
+                        (addressed-component-component right-source)))]
+                   [else
+                    (< (component-occurrence-index
+                        (component-trace-edge-target left))
+                       (component-occurrence-index
+                        (component-trace-edge-target right)))])))))))
+
+(define (component-trace-unavailable->datum value)
+  (list
+   'component-trace
+   (list 'status 'unknown)
+   (list*
+    'inputs
+    (map component-trace-input->datum
+         (component-trace-unavailable-inputs value)))
+   (list*
+    'source-universe
+    (map addressed-component->datum
+         (component-trace-unavailable-sources value)))
+   (list 'output
+         (hypersequent->datum
+          (component-trace-unavailable-output value)))
+   (list*
+    'target-universe
+    (map component-occurrence->datum
+         (component-trace-unavailable-targets value)))
+   (list*
+    'blockers
+    (map component-trace-blocker->datum
+         (sort (component-trace-unavailable-blockers value)
+               address<?
+               #:key component-trace-blocker-address)))
+   (list*
+    'known-edges
+    (map component-trace-edge->datum
+         (component-trace-unavailable-known-edges value)))))
+
+(define (component-relation-classification->datum value)
+  (list 'classification
+        (list 'functional?
+              (component-relation-classification-functional? value))
+        (list 'inverse-functional?
+              (component-relation-classification-inverse-functional? value))
+        (list 'total?
+              (component-relation-classification-total? value))
+        (list 'surjective?
+              (component-relation-classification-surjective? value))
+        (list 'splitting?
+              (component-relation-classification-splitting? value))
+        (list 'merger?
+              (component-relation-classification-merger? value))
+        (list 'erasure?
+              (component-relation-classification-erasure? value))
+        (list 'unsupported-creation?
+              (component-relation-classification-unsupported-creation?
+               value))))
+
+(define (local-component-analysis->datum value)
+  (list
+   'vertex-component-relation
+   (list 'address (local-component-analysis-address value))
+   (list 'occurrence-id
+         (concrete-occurrence-id
+          (local-component-analysis-occurrence value)))
+   (list 'relation (value->datum (local-component-analysis-relation value)))
+   (list 'classification
+         (value->datum (local-component-analysis-classification value)))
+   (list 'proof-factor-defect
+         (local-component-analysis-proof-factor-defect value))
+   (list 'hypersequent-defect
+         (local-component-analysis-hypersequent-defect value))))
+
+(define (component-scalar-analysis->datum value)
+  (list
+   'scalar-structural-calibration
+   (list 'proof-factor
+         (list 'total (component-scalar-analysis-proof-factor-total value))
+         (list 'euler-expected
+               (component-scalar-analysis-proof-factor-expected value))
+         (list 'euler-holds?
+               (component-scalar-analysis-proof-factor-euler-holds? value)))
+   (list 'hypersequent
+         (list 'total (component-scalar-analysis-hypersequent-total value))
+         (list 'euler-expected
+               (component-scalar-analysis-hypersequent-expected value))
+         (list 'euler-holds?
+               (component-scalar-analysis-hypersequent-euler-holds? value)))))
+
+(define (ck-component-profile->datum value)
+  (list
+   'ck-component-profile
+   (list 'cut-addresses (ck-component-profile-addresses value))
+   (list*
+    'aligned-detached
+    (map detached-entry->datum (ck-component-profile-detached value)))
+   (list*
+    'puncture-telescope
+    (map telescope-entry->datum
+         (ck-component-profile-puncture-telescope value)))
+   (list 'retained-remainder
+         (checked-term->datum (ck-component-profile-remainder value)))
+   (list*
+    'source-frontier
+    (map addressed-component->datum
+         (ck-component-profile-source-components value)))
+   (list*
+    'output-frontier
+    (map component-occurrence->datum
+         (ck-component-profile-output-components value)))
+   (list 'trace (value->datum (ck-component-profile-trace value)))
+   (list 'reconstruction
+         (checked-term->datum (ck-component-profile-reconstruction value)))
+   (list 'reconstructs? (ck-component-profile-reconstructs? value))))
+
+(define (component-analysis->datum value)
+  (define profiles (component-analysis-ck-profiles value))
+  (list
+   'component-analysis
+   (list*
+    'local-relations
+    (map local-component-analysis->datum
+         (sort (component-analysis-local-relations value)
+               address<?
+               #:key local-component-analysis-address)))
+   (component-scalar-analysis->datum
+    (component-analysis-scalar-analysis value))
+   (list 'net-context-trace
+         (value->datum (component-analysis-net-trace value)))
+   (list 'ck-profile-count
+         (if (list? profiles) (length profiles) (value->datum profiles)))
+   (list*
+    'ck-profiles
+    (if (list? profiles)
+        (map ck-component-profile->datum
+             (sort profiles address-set<?
+                   #:key ck-component-profile-addresses))
+        (list (value->datum profiles))))))
+
+(define (attached-component-analysis->datum value)
+  (if (component-analysis? value)
+      (component-analysis->datum value)
+      (list 'component-analysis (value->datum value))))
+
 (define (analysis-limit->datum value)
   (list 'not-computed
         (list 'message "not computed: limit")
@@ -505,6 +746,8 @@
          (value->datum
           (derivation-analysis-refinement-order-count value)))
    (list 'root-first-refinement-histories (value->datum orders))
+   (attached-component-analysis->datum
+    (derivation-analysis-component-analysis value))
    (hopf-law-analysis->datum (derivation-analysis-hopf-laws value))
    (list 'analysis-limit (derivation-analysis-limit value))))
 
@@ -519,7 +762,9 @@
          (map telescope-entry->datum
               (context-analysis-puncture-telescope value)))
         (list 'connected-analysis
-              (value->datum (context-analysis-connected value)))))
+              (value->datum (context-analysis-connected value)))
+        (attached-component-analysis->datum
+         (context-analysis-component-analysis value))))
 
 (define (forest-analysis->datum value)
   (list 'potkin-forest-analysis
@@ -644,6 +889,25 @@
     [(hopf-law-analysis? value) (hopf-law-analysis->datum value)]
     [(law-check? value) (law-check->datum value)]
     [(analysis-unavailable? value) (analysis-unavailable->datum value)]
+    [(component-analysis? value) (component-analysis->datum value)]
+    [(component-analysis-unavailable? value)
+     (component-analysis-unavailable->datum value)]
+    [(component-incidence? value) (component-incidence->datum value)]
+    [(component-trace? value) (component-trace->datum value)]
+    [(component-trace-unavailable? value)
+     (component-trace-unavailable->datum value)]
+    [(component-relation-classification? value)
+     (component-relation-classification->datum value)]
+    [(local-component-analysis? value)
+     (local-component-analysis->datum value)]
+    [(component-scalar-analysis? value)
+     (component-scalar-analysis->datum value)]
+    [(ck-component-profile? value) (ck-component-profile->datum value)]
+    [(addressed-component? value) (addressed-component->datum value)]
+    [(component-trace-edge? value) (component-trace-edge->datum value)]
+    [(component-trace-input? value) (component-trace-input->datum value)]
+    [(component-trace-blocker? value)
+     (component-trace-blocker->datum value)]
     [(analysis-limit? value) (analysis-limit->datum value)]
     [(analysis-error? value) (analysis-error->datum value)]
     [(formal-sum? value) (formal-sum->datum value)]
@@ -688,7 +952,13 @@
               (law-check? value)
               (analysis-unavailable? value)
               (analysis-limit? value)
-              (analysis-error? value))
+              (analysis-error? value)
+              (component-analysis? value)
+              (component-analysis-unavailable? value)
+              (component-trace-result? value)
+              (component-incidence? value)
+              (component-relation-classification? value)
+              (ck-component-profile? value))
     (raise-argument-error
      'analysis->datum
      "Potkin analysis report or structured analysis result"
