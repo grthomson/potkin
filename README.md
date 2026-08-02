@@ -32,6 +32,9 @@ The implemented slice contains:
 - the public reduced coproduct, rooted coaction, exact final-corolla
   factorization/projection, and the typed one-slot-insertion/singleton-cut
   coefficient pairing;
+- address-resolved premise ancestry, explicit empty/proper/whole cut choices,
+  ancestry ideals, cut polynomials, causal width, root-first refinement
+  orders, iterated coproducts, and independently checked convolution counts;
 - the connected-graded antipode and both convolution identities;
 - total componentwise formal maps for exact-ID constructor deletion and
   persistent calculus additions, together with their sequential action along
@@ -64,6 +67,8 @@ potkin/
   hopf/           Coproduct, rooted operations, antipode, and revision maps
   dsl.rkt         Finite declaration EDSL public facade
   dsl/            Declarations, checked proof terms, contexts, and filling points
+  analysis.rkt    Premise-ancestry and convolution-analysis public facade
+  analysis/       Causal ideals, refinement orders, and exact bounded counts
   main.rkt        Public package entry point
 examples/
   smoke.rkt       Preserved installation smoke example
