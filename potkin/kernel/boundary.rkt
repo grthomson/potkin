@@ -3,6 +3,7 @@
 (require racket/list)
 
 (provide formula-datum?
+         symbolic-datum<?
          formula-context?
          make-formula-context
          empty-formula-context
@@ -108,19 +109,36 @@
 (define (bytes-lex<? left right)
   (sequence-lex<? (bytes->list left) (bytes->list right) < =))
 
+;; Exact formula numbers are ordered by their mathematical real and imaginary
+;; coordinates.  In particular, presentation strings never participate in
+;; the semantic order used to canonicalise a boundary.
+(define (exact-number<? left right)
+  (cond
+    [(and (real? left) (not (real? right))) #t]
+    [(and (not (real? left)) (real? right)) #f]
+    [(< (real-part left) (real-part right)) #t]
+    [(> (real-part left) (real-part right)) #f]
+    [else (< (imag-part left) (imag-part right))]))
+
 ;; formula-datum? restricts this comparator to a finite family of immutable
 ;; symbolic forms, so this is a genuine total structural order rather than a
-;; presentation-string heuristic.
-(define (datum<? left right)
+;; presentation-string heuristic.  It is public so deterministic research
+;; reports can use exactly the order that canonical boundaries use.
+(define (symbolic-datum<? left right)
+  (unless (formula-datum? left)
+    (raise-argument-error 'symbolic-datum<? "formula-datum?" left))
+  (unless (formula-datum? right)
+    (raise-argument-error 'symbolic-datum<? "formula-datum?" right))
   (define left-rank (datum-rank left))
   (define right-rank (datum-rank right))
   (cond
+    [(equal? left right) #f]
     [(< left-rank right-rank) #t]
     [(> left-rank right-rank) #f]
     [(null? left) #f]
     [(boolean? left) (and (not left) right)]
     [(char? left) (char<? left right)]
-    [(number? left) (string<? (format "~s" left) (format "~s" right))]
+    [(number? left) (exact-number<? left right)]
     [(symbol? left) (string<? (symbol->string left) (symbol->string right))]
     [(keyword? left)
      (string<? (keyword->string left) (keyword->string right))]
@@ -129,12 +147,12 @@
     [(pair? left)
      (cond
        [(equal? (car left) (car right))
-        (datum<? (cdr left) (cdr right))]
-       [else (datum<? (car left) (car right))])]
+        (symbolic-datum<? (cdr left) (cdr right))]
+       [else (symbolic-datum<? (car left) (car right))])]
     [(vector? left)
      (sequence-lex<? (vector->list left)
                      (vector->list right)
-                     datum<?
+                     symbolic-datum<?
                      equal?)]))
 
 (define (formula-context->list context)
@@ -143,7 +161,7 @@
   (append-map
    (lambda (formula)
      (make-list (hash-ref (formula-context-counts context) formula) formula))
-   (sort (hash-keys (formula-context-counts context)) datum<?)))
+   (sort (hash-keys (formula-context-counts context)) symbolic-datum<?)))
 
 (struct sequent (left right)
   #:constructor-name make-sequent/internal
@@ -224,7 +242,7 @@
 (define (formula-context<? left right)
   (sequence-lex<? (formula-context->list left)
                   (formula-context->list right)
-                  datum<?
+                  symbolic-datum<?
                   equal?))
 
 (define (sequent<? left right)

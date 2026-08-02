@@ -35,6 +35,8 @@ The implemented slice contains:
 - address-resolved premise ancestry, explicit empty/proper/whole cut choices,
   ancestry ideals, cut polynomials, causal width, root-first refinement
   orders, iterated coproducts, and independently checked convolution counts;
+- immutable finite-input derivation, context, forest, and Hopf-law reports
+  with deterministic structural rendering and explicit analysis limits;
 - the connected-graded antipode and both convolution identities;
 - total componentwise formal maps for exact-ID constructor deletion and
   persistent calculus additions, together with their sequential action along
@@ -51,7 +53,8 @@ law or an implementation of every result in the manuscript.
 
 See `docs/semantic-contract-v56.md` for the representation contract and
 `docs/integral-ck-hopf-v56.md` for the algebra, laws, revision maps, and exact
-deferred scope.
+deferred scope.  `docs/research-workbench-v56.md` describes the declaration,
+analysis, and reporting workflow.
 
 ## Layout
 
@@ -69,10 +72,15 @@ potkin/
   dsl/            Declarations, checked proof terms, contexts, and filling points
   analysis.rkt    Premise-ancestry and convolution-analysis public facade
   analysis/       Causal ideals, refinement orders, and exact bounded counts
+  tool.rkt        Deterministic research-report public facade
+  tool/           Immutable reports and structural presentation
   main.rkt        Public package entry point
 examples/
   smoke.rkt       Preserved installation smoke example
   v56-running-factorisation.rkt
+  dsl-running-factorisation.rkt
+  dsl-open-context.rkt
+  dsl-hypersequent.rkt
 tests/
   smoke-test.rkt  Preserved installation smoke test
 ```
@@ -87,6 +95,9 @@ From PowerShell:
 ```powershell
 & 'C:\Program Files\Racket\racket.exe' examples\smoke.rkt
 & 'C:\Program Files\Racket\racket.exe' examples\v56-running-factorisation.rkt
+& 'C:\Program Files\Racket\racket.exe' -S . examples\dsl-running-factorisation.rkt
+& 'C:\Program Files\Racket\racket.exe' -S . examples\dsl-open-context.rkt
+& 'C:\Program Files\Racket\racket.exe' -S . examples\dsl-hypersequent.rkt
 & 'C:\Program Files\Racket\raco.exe' test tests\smoke-test.rkt
 & 'C:\Program Files\Racket\raco.exe' test -j 4 .
 ```
@@ -121,16 +132,18 @@ from the ordinary entry point:
 (require potkin)
 
 (define-formula-signature L
-  #:atoms [S T]
+  #:atoms [S T U]
   [fusion 2])
 
 (define HS  (hseq L (seq L [] => [S])))
 (define HT  (hseq L (seq L [] => [T])))
 (define HST (hseq L (seq L [] => [(fusion S T)])))
+(define HU  (hseq L (seq L [] => [U])))
 
 (define-rule-signature Rules
   [ground   #:kind material #:arity 0]
-  [fusion-R #:kind logical  #:arity 2])
+  [fusion-R #:kind logical  #:arity 2]
+  [wrap     #:kind structural #:arity 1])
 
 (define-occurrence bS
   #:type ground #:instance S #:premises [] #:conclusion HS)
@@ -139,17 +152,22 @@ from the ordinary entry point:
 (define-occurrence m
   #:type fusion-R #:instance (list S T)
   #:premises [HS HT] #:conclusion HST)
+(define-occurrence i
+  #:type wrap #:instance U
+  #:premises [HST] #:conclusion HU)
 
 (define-calculus K
-  #:language L #:rules Rules #:occurrences [bS bT m])
+  #:language L #:rules Rules #:occurrences [bS bT m i])
 
 (define-proof t
-  #:in K #:root HST
-  (m bS bT))
+  #:in K #:root HU
+  (i (m bS bT)))
 
 (define-context r
-  #:in K #:root HST
-  (m _ bT))
+  #:in K #:root HU
+  (i (m _ bT)))
+
+(write-analysis (analyze-derivation t))
 ```
 
 Formula constructors still produce ordinary immutable symbolic data, and
@@ -157,3 +175,9 @@ Formula constructors still produce ordinary immutable symbolic data, and
 fixed decorations only; they do not generate schematic rule instances.
 Application heads and leaves in declarative terms are lexical concrete-
 occurrence bindings; `_` is the sole puncture form.
+
+The running report keeps five occurrence-level CK witnesses distinct from
+the six collected coproduct terms.  It also shows the final-corolla tensor,
+`3q + q^2` cut polynomial, ancestry width two, and the two root-first
+histories.  Expensive analyses are budgeted; exceeding a budget renders
+`not computed: limit`, never zero or a failed law.
