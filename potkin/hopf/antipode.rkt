@@ -58,31 +58,6 @@
   (and (< 0 left-degree total-degree)
        (< 0 right-degree total-degree)))
 
-(define (reduced-coproduct forest)
-  (define calculus (proof-forest-calculus forest))
-  (define empty-forest (empty-proof-forest calculus))
-  (define delta (forest-coproduct forest))
-  (cond
-    [(antipode-layer-error? delta) delta]
-    [else
-     (define left-endpoint
-       (pure-tensor calculus (vector forest empty-forest)))
-     (cond
-       [(antipode-layer-error? left-endpoint) left-endpoint]
-       [else
-        (define right-endpoint
-          (pure-tensor calculus (vector empty-forest forest)))
-        (cond
-          [(antipode-layer-error? right-endpoint) right-endpoint]
-          [else
-           (define without-left-endpoint
-             (formal-sum-subtract delta left-endpoint))
-           (if (antipode-layer-error? without-left-endpoint)
-               without-left-endpoint
-               (formal-sum-subtract
-                without-left-endpoint
-                right-endpoint))])])]))
-
 ;; The memo is deliberately supplied by one top-level operation.  Its forest
 ;; keys may use structural equality safely because every entry belongs to the
 ;; one exact calculus passed alongside it.

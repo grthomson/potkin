@@ -29,6 +29,9 @@ The implemented slice contains:
   coefficients, and checked coordinate expansion and contraction;
 - the collected, full multiplicative CK coproduct on complete and punctured
   positive-vertex trees, together with its counit and vertex grading;
+- the public reduced coproduct, rooted coaction, exact final-corolla
+  factorization/projection, and the typed one-slot-insertion/singleton-cut
+  coefficient pairing;
 - the connected-graded antipode and both convolution identities;
 - total componentwise formal maps for exact-ID constructor deletion and
   persistent calculus additions, together with their sequential action along
@@ -58,7 +61,7 @@ potkin/
   algebra.rkt     Integral formal-sum public facade
   algebra/        Sparse forest and ordered-tensor sums
   hopf.rkt        Integral CK Hopf public facade
-  hopf/           Coproduct, grading, antipode, and formal revision maps
+  hopf/           Coproduct, rooted operations, antipode, and revision maps
   dsl.rkt         Finite declaration EDSL public facade
   dsl/            Declarations, checked proof terms, contexts, and filling points
   main.rkt        Public package entry point

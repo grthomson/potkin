@@ -57,6 +57,47 @@ zero, every other public basis forest has positive degree, and holes contribute
 zero only inside a positive rooted factor. Formal zero has no invented
 homogeneous degree.
 
+## Reduced coproduct and rooted operations
+
+`reduced-coproduct` exposes the literal forest formula
+
+```text
+reduced-Delta(F) = Delta(F) - F tensor 1 - 1 tensor F.
+```
+
+Its antipode recursion uses nonempty forests. On the empty-forest unit the
+same public formula is retained exactly and gives `-1 tensor 1`; it is not
+silently replaced by additive zero.
+
+For a positive connected term `t` of root `G`, `root-coaction` removes only
+the separately adjoined `t tensor 1` endpoint. The empty cut remains as
+`1 tensor t`, and every right coordinate is checked to be a singleton
+positive retained context with exact calculus provenance and root `G`. The
+finite-input tests check `(Delta tensor id) delta = (id tensor delta) delta`
+and `(epsilon tensor id) delta = id` by ordered coordinate expansion and
+contraction.
+
+For a complete connected proof, `final-corolla-factorization` retains its
+source, exact final occurrence, immediate children in premise-slot order,
+their commutative forest image, and the full-premise corolla. The ordered
+children recompose the source. `final-corolla-projection` computes and checks
+
+```text
+(id tensor pr_1) Delta(t) = Prem(t) tensor Cor(final(t)),
+```
+
+including the nullary case, where `Prem(t)` is the empty forest. The aligned
+child vector is indispensable: commutative forest multiplication does not
+remember premise order.
+
+`one-slot-context-insertion(S,T)` is a finite integral sum over exactly the
+typed punctures of the positive connected context `T` that accept the root of
+`S`. It is context insertion, not forest multiplication. Its coefficient at
+`U` is paired with the coefficient of `S tensor T` in
+`singleton-cut-coproduct(U)`, which contains exactly the nonroot one-address
+cuts and no endpoint or multi-address cut. Typed nodeless `Box^G` remains the
+context-composition identity and is outside every Hopf basis operation.
+
 ## Antipode
 
 The connected grading gives a terminating recursion. For a nonempty forest
