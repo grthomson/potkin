@@ -4,7 +4,10 @@
          racket/pretty
          "../algebra/formal-sum.rkt"
          "../analysis/ancestry.rkt"
+         "../analysis/cocycle.rkt"
          "../analysis/component-trace.rkt"
+         "../analysis/derivative-frame.rkt"
+         "../analysis/recurrence.rkt"
          "../dsl/term.rkt"
          "../hopf/antipode.rkt"
          "../hopf/ck.rkt"
@@ -15,7 +18,8 @@
          "../kernel/component-incidence.rkt"
          "../kernel/context.rkt"
          "../kernel/cut.rkt"
-         "analysis.rkt")
+         "analysis.rkt"
+         "recurrence.rkt")
 
 (provide checked-term->datum
          proof-forest->datum
@@ -850,7 +854,948 @@
               (proof-forest->datum (cut-witness-forest value)))
         (list 'retained-context
               (checked-term->datum (cut-witness-remainder value)))
-        (list 'reconstructs? (cut-witness-reconstructs? value))))
+         (list 'reconstructs? (cut-witness-reconstructs? value))))
+
+(define (frame-off-spine->datum value)
+  (list 'off-spine-premise
+        (list 'slot (frame-off-spine-slot value))
+        (list 'boundary
+              (hypersequent->datum
+               (frame-off-spine-boundary value)))))
+
+(define (derivative-frame-edge-order-key value)
+  (list
+   (hypersequent->datum (derivative-frame-edge-source value))
+   (hypersequent->datum (derivative-frame-edge-target value))
+   (concrete-occurrence-id (derivative-frame-edge-occurrence value))
+   (derivative-frame-edge-slot value)))
+
+(define (derivative-frame-edge<? left right)
+  (symbolic-datum<?
+   (derivative-frame-edge-order-key left)
+   (derivative-frame-edge-order-key right)))
+
+(define (derivative-frame-edge->datum value)
+  (list
+   'derivative-frame-edge
+   (list 'occurrence-id
+         (concrete-occurrence-id
+          (derivative-frame-edge-occurrence value)))
+   (list 'slot (derivative-frame-edge-slot value))
+   (list 'source
+         (hypersequent->datum (derivative-frame-edge-source value)))
+   (list 'target
+         (hypersequent->datum (derivative-frame-edge-target value)))
+   (list*
+    'ordered-off-spine
+    (map frame-off-spine->datum
+         (sort (derivative-frame-edge-off-spine value)
+               < #:key frame-off-spine-slot)))
+   (list 'selected-address
+         (derivative-frame-edge-selected-address value))
+   (list 'open-corolla
+         (checked-term->datum (derivative-frame-edge-corolla value)))
+   (list 'component-incidence
+         (value->datum (derivative-frame-edge-incidence value)))))
+
+(define (derivative-frame-graph->datum value)
+  (list
+   'derivative-frame-graph
+   (list 'calculus
+         (equipped-calculus->datum
+          (derivative-frame-graph-calculus value)))
+   (list*
+    'vertices
+    (sort
+     (map hypersequent->datum
+          (derivative-frame-graph-vertices value))
+     symbolic-datum<?))
+   (list*
+    'edges
+    (map derivative-frame-edge->datum
+         (sort (derivative-frame-graph-edges value)
+               derivative-frame-edge<?)))))
+
+(define (productivity-witness->datum value)
+  (list
+   'productivity-witness
+   (list 'boundary
+         (hypersequent->datum (productivity-witness-boundary value)))
+   (list 'height (productivity-witness-height value))
+   (list 'occurrence-id
+         (concrete-occurrence-id
+          (productivity-witness-occurrence value)))
+   (list 'proof
+         (checked-term->datum (productivity-witness-proof value)))
+   (list*
+    'ordered-premise-witnesses
+    (for/list
+        ([premise
+          (in-list (productivity-witness-premise-witnesses value))]
+         [slot (in-naturals 1)])
+      (list 'slot slot
+            (hypersequent->datum
+             (productivity-witness-boundary premise)))))))
+
+(define (frame-productivity->datum value)
+  (list
+   'frame-productivity
+   (list 'work (frame-productivity-work value))
+   (list*
+    'witnesses
+    (map productivity-witness->datum
+         (sort
+          (frame-productivity-witnesses value)
+          symbolic-datum<?
+          #:key
+          (lambda (witness)
+            (hypersequent->datum
+             (productivity-witness-boundary witness))))))))
+
+(define (frame-cycle->datum value)
+  (list
+   'frame-cycle
+   (list 'boundary (hypersequent->datum (frame-cycle-boundary value)))
+   ;; This is a path, not a commutative collection.  Preserve its order.
+   (list*
+    'ordered-cycle-path
+    (for/list ([edge (in-list (frame-cycle-edges value))]
+               [step (in-naturals 1)])
+      (list 'step step (derivative-frame-edge->datum edge))))
+   (list 'distinguished-address
+         (frame-cycle-distinguished-address value))
+   (list 'off-spine-addresses
+         (sort (frame-cycle-off-spine-addresses value) address<?))
+   (list 'raw-context
+         (checked-term->datum (frame-cycle-raw-context value)))
+   (list 'simple? (frame-cycle-simple? value))))
+
+(define (frame-filler->datum entry)
+  (list 'filler
+        (list 'address (car entry))
+        (list 'proof (checked-term->datum (cdr entry)))))
+
+(define (frame-realisation->datum value)
+  (list
+   'frame-realisation
+   (list 'status (frame-realisation-status value))
+   (list 'cycle (frame-cycle->datum (frame-realisation-cycle value)))
+   (list*
+    'fillers
+    (map frame-filler->datum
+         (sort (frame-realisation-fillers value) address<? #:key car)))
+   (list 'context
+         (checked-term->datum (frame-realisation-context value)))
+   (list 'seed-proof
+         (value->datum (frame-realisation-seed-proof value)))))
+
+(define (boundary-recurrence->datum value)
+  (list
+   'boundary-recurrence
+   (list 'boundary
+         (hypersequent->datum (boundary-recurrence-boundary value)))
+   (list 'status (boundary-recurrence-status value))
+   (list 'theorem-holds? (boundary-recurrence-theorem-holds? value))
+   (list 'raw-cycle (value->datum (boundary-recurrence-raw-cycle value)))
+   (list 'realised-cycle
+         (value->datum (boundary-recurrence-realised-cycle value)))
+   (list 'realisation
+         (value->datum (boundary-recurrence-realisation value)))
+   (list 'context-decomposition
+         (value->datum (boundary-recurrence-decomposition value)))
+   (list 'productivity
+         (value->datum (boundary-recurrence-productivity value)))))
+
+(define (return-spine-frame->datum value)
+  (list
+   'return-spine-frame
+   (list 'address (return-spine-frame-address value))
+   (list 'occurrence-id
+         (concrete-occurrence-id
+          (return-spine-frame-occurrence value)))
+   (list 'selected-slot (return-spine-frame-selected-slot value))
+   (list 'root-boundary
+         (hypersequent->datum (return-spine-frame-root-boundary value)))
+   (list 'selected-boundary
+         (hypersequent->datum
+          (return-spine-frame-selected-boundary value)))
+   (list*
+    'ordered-off-spine-children
+    (for/list
+        ([entry
+          (in-list
+           (sort (return-spine-frame-off-spine-children value)
+                 < #:key car))])
+      (list 'slot (car entry)
+            (checked-term->datum (cdr entry)))))
+   (list 'proper-return? (return-spine-frame-return? value))))
+
+(define (return-spine-decomposition->datum value)
+  (list
+   'return-spine-decomposition
+   (list 'source
+         (checked-term->datum (return-spine-decomposition-source value)))
+   (list 'puncture (return-spine-decomposition-puncture value))
+   (list*
+    'constructor-frames
+    (map return-spine-frame->datum
+         (return-spine-decomposition-frames value)))
+   (list 'proper-return-addresses
+         (return-spine-decomposition-proper-return-addresses value))
+   (list 'reconstructed
+         (checked-term->datum
+          (return-spine-decomposition-reconstructed value)))
+   (list 'reconstructs?
+         (return-spine-decomposition-reconstructs? value))))
+
+(define (return-expansion-step->datum value)
+  (list
+   'return-expansion-step
+   (list 'stage (return-expansion-step-stage value))
+   (list 'kind (return-expansion-step-kind value))
+   (list 'addresses
+         (sort (return-expansion-step-addresses value) address<?))
+   (list 'source-forest
+         (proof-forest->datum
+          (return-expansion-step-source-forest value)))
+   (list 'cut-witness
+         (value->datum (return-expansion-step-cut-witness value)))
+   (list 'left-forest
+         (proof-forest->datum
+          (return-expansion-step-left-forest value)))
+   (list 'right-forest
+         (proof-forest->datum
+          (return-expansion-step-right-forest value)))))
+
+(define (ordered-forests->datum tag forests)
+  (list*
+   tag
+   (for/list ([forest (in-list forests)]
+              [coordinate (in-naturals 1)])
+     (list 'coordinate coordinate (proof-forest->datum forest)))))
+
+(define (return-iterated-witness->datum value)
+  (list
+   'return-iterated-witness
+   (list 'power (return-iterated-witness-power value))
+   (list*
+    'ordered-expansion-steps
+    (map return-expansion-step->datum
+         (return-iterated-witness-steps value)))
+   (ordered-forests->datum
+    'ordered-coordinate-forests
+    (return-iterated-witness-coordinate-forests value))
+   (list 'tensor
+         (formal-sum->datum (return-iterated-witness-tensor value)))
+   (list 'coordinate-values
+         (return-iterated-witness-coordinate-values value))
+   (list 'survives? (return-iterated-witness-survives? value))
+   (list 'reverse-chain-addresses
+         (return-iterated-witness-reverse-chain-addresses value))))
+
+(define (return-chain-witness->datum value)
+  (list
+   'return-chain-witness
+   (list 'constructor-decisions
+         (return-chain-witness-constructor-decisions value))
+   (list 'addresses (return-chain-witness-addresses value))
+   (list*
+    'ordered-staged-cut-witnesses
+    (map cut-witness->datum
+         (return-chain-witness-staged-witnesses value)))
+   (ordered-forests->datum
+    'ordered-coordinate-forests
+    (return-chain-witness-coordinate-forests value))
+   (list 'tensor (formal-sum->datum (return-chain-witness-tensor value)))
+   (list 'reconstructs? (return-chain-witness-reconstructs? value))))
+
+(define (return-witness-bijection->datum value)
+  (list
+   'return-witness-bijection
+   (list 'addresses (return-witness-bijection-addresses value))
+   (list 'chain-witness
+         (return-chain-witness->datum
+          (return-witness-bijection-chain-witness value)))
+   (list 'iterated-witness
+         (return-iterated-witness->datum
+          (return-witness-bijection-iterated-witness value)))
+   (list 'forward-tensor-equal?
+         (return-witness-bijection-forward-tensor-equal? value))
+   (list 'reverse-chain-equal?
+         (return-witness-bijection-reverse-chain-equal? value))
+   (list 'roundtrip? (return-witness-bijection-roundtrip? value))))
+
+(define (return-tensor-evaluation->datum value)
+  (list
+   'return-tensor-evaluation
+   (list*
+    'tensor
+    (for/list ([forest (in-vector (return-tensor-evaluation-key value))])
+      (proof-forest->datum forest)))
+   (list 'coefficient (return-tensor-evaluation-coefficient value))
+   (list 'coordinate-values
+         (return-tensor-evaluation-coordinate-values value))
+   (list 'contribution (return-tensor-evaluation-contribution value))
+   (list 'survives? (return-tensor-evaluation-survives? value))))
+
+(define (return-power-certificate->datum value)
+  (list
+   'return-convolution-power-certificate
+   (list 'power (return-power-certificate-power value))
+   (list 'source
+         (checked-term->datum (return-power-certificate-source value)))
+   (list 'spine-decomposition
+         (return-spine-decomposition->datum
+          (return-power-certificate-spine-decomposition value)))
+   (list 'actual-iterated-coproduct
+         (formal-sum->datum
+          (return-power-certificate-actual-iterated-coproduct value)))
+   (list*
+    'collected-tensor-evaluations
+    (map return-tensor-evaluation->datum
+         (sort
+          (return-power-certificate-tensor-evaluations value)
+          tensor-key<?
+          #:key return-tensor-evaluation-key)))
+   (list 'actual-survivor-projection
+         (formal-sum->datum
+          (return-power-certificate-actual-survivor-projection value)))
+   (list*
+    'uncollected-iterated-witnesses
+    (map return-iterated-witness->datum
+         (return-power-certificate-iterated-occurrence-witnesses value)))
+   (list 'uncollected-iterated-witness-count
+         (length
+          (return-power-certificate-iterated-occurrence-witnesses value)))
+   (list 'uncollected-iterated-sum
+         (formal-sum->datum
+          (return-power-certificate-uncollected-iterated-sum value)))
+   (list*
+    'surviving-uncollected-witnesses
+    (map return-iterated-witness->datum
+         (return-power-certificate-surviving-occurrence-witnesses value)))
+   (list 'surviving-uncollected-witness-count
+         (length
+          (return-power-certificate-surviving-occurrence-witnesses value)))
+   (list 'uncollected-survivor-projection
+         (formal-sum->datum
+          (return-power-certificate-uncollected-survivor-projection value)))
+   (list*
+    'recursive-chain-witnesses
+    (map return-chain-witness->datum
+         (return-power-certificate-chain-witnesses value)))
+   (list 'recursive-chain-projection
+         (formal-sum->datum
+          (return-power-certificate-recursive-chain-projection value)))
+   (list*
+    'witness-bijections
+    (map return-witness-bijection->datum
+         (sort
+          (return-power-certificate-witness-bijections value)
+          address-word<?
+          #:key return-witness-bijection-addresses)))
+   (list 'actual-value (return-power-certificate-actual-value value))
+   (list 'chain-count (return-power-certificate-chain-count value))
+   (list 'binomial-expected
+         (return-power-certificate-binomial-expected value))
+   (list 'uncollected-iterated-equal?
+         (return-power-certificate-uncollected-iterated-equal? value))
+   (list 'occurrence-projection-equal?
+         (return-power-certificate-occurrence-projection-equal? value))
+   (list 'projection-equal?
+         (return-power-certificate-projection-equal? value))
+   (list 'scalar-equal?
+         (return-power-certificate-scalar-equal? value))
+   (list 'witness-count-equal?
+         (return-power-certificate-witness-count-equal? value))
+   (list 'witness-bijection-holds?
+         (return-power-certificate-witness-bijection-holds? value))))
+
+(define (return-polynomial->datum value)
+  (list
+   'return-factorisation-polynomial
+   (list 'return-count (return-polynomial-data-return-count value))
+   (list 'coefficients
+         (vector->list (return-polynomial-data-coefficients value)))
+   (list 'closed-form-coefficients
+         (vector->list
+          (return-polynomial-data-closed-form-coefficients value)))
+   (list 'equal? (return-polynomial-data-equal? value))))
+
+(define (first-return-certificate->datum value)
+  (list
+   'first-return-certificate
+   (list 'source
+         (checked-term->datum (first-return-certificate-source value)))
+   (list 'boundary
+         (hypersequent->datum
+          (boundary-return-character-boundary
+           (first-return-certificate-character value))))
+   (list 'puncture (first-return-certificate-puncture value))
+   (list 'proper-return-addresses
+         (first-return-certificate-proper-return-addresses value))
+   (list*
+    'convolution-powers
+    (map return-power-certificate->datum
+         (first-return-certificate-power-certificates value)))
+   (list 'polynomial
+         (return-polynomial->datum
+          (first-return-certificate-polynomial value)))
+   (list 'antipode-image
+         (formal-sum->datum
+          (first-return-certificate-antipode-image value)))
+   (list 'antipode-character-value
+         (first-return-certificate-antipode-character-value value))
+   (list 'polynomial-at-minus-one
+         (first-return-certificate-polynomial-at-minus-one value))
+   (list 'first-return-indicator
+         (first-return-certificate-first-return-indicator value))
+   (list 'classification
+         (if (= (first-return-certificate-first-return-indicator value) 1)
+             'first-return
+             'composite))
+   (list 'direct-first-return?
+         (first-return-certificate-direct-first-return? value))
+   (list 'polynomial-antipode-sign-law?
+         (first-return-certificate-polynomial-antipode-sign-law? value))
+   (list 'indicator-law?
+         (first-return-certificate-indicator-law? value))
+   (list 'theorem-holds?
+         (first-return-certificate-theorem-holds? value))))
+
+(define (unfolding-layer->datum value)
+  (list
+   'unfolding-layer
+   (list 'power (unfolding-layer-power value))
+   (list 'context (checked-term->datum (unfolding-layer-context value)))
+   (list 'inserted-root-address
+         (unfolding-layer-inserted-root-address value))
+   (list 'puncture-address (unfolding-layer-puncture-address value))
+   (list 'return-certificate
+         (first-return-certificate->datum
+          (unfolding-layer-return-certificate value)))
+   (list 'power-law? (unfolding-layer-power-law? value))))
+
+(define (seeded-unfolding-certificate->datum value)
+  (list
+   'seeded-unfolding-certificate
+   (list 'power (seeded-unfolding-certificate-power value))
+   (list*
+    'layers
+    (map unfolding-layer->datum
+         (seeded-unfolding-certificate-layers value)))
+   (list 'seed
+         (checked-term->datum (seeded-unfolding-certificate-seed value)))
+   (list 'completed-proof
+         (checked-term->datum
+          (seeded-unfolding-certificate-completed-proof value)))
+   (list 'separation-addresses
+         (seeded-unfolding-certificate-separation-addresses value))
+   (list*
+    'ordered-staged-cut-witnesses
+    (map cut-witness->datum
+         (seeded-unfolding-certificate-staged-witnesses value)))
+   (ordered-forests->datum
+    'ordered-coordinate-forests
+    (seeded-unfolding-certificate-coordinate-forests value))
+   (list 'actual-iterated-coproduct
+         (formal-sum->datum
+          (seeded-unfolding-certificate-actual-iterated-coproduct value)))
+   (list 'collected-coefficient
+         (seeded-unfolding-certificate-collected-coefficient value))
+   (list 'reconstructs?
+         (seeded-unfolding-certificate-reconstructs? value))))
+
+(define (side-evidence-data->datum value)
+  (list
+   'side-evidence-factorisation
+   (list 'source (checked-term->datum (side-evidence-data-source value)))
+   (list 'puncture (side-evidence-data-puncture value))
+   (list 'spine-addresses (side-evidence-data-spine-addresses value))
+   (list 'frontier-addresses
+         (sort (side-evidence-data-frontier-addresses value) address<?))
+   (list 'cut-witness (value->datum (side-evidence-data-witness value)))
+   (list 'side-evidence-forest
+         (proof-forest->datum (side-evidence-data-forest value)))
+   (list 'bare-spine-remainder
+         (checked-term->datum
+          (side-evidence-data-bare-spine-remainder value)))
+   (list 'new-puncture-addresses
+         (sort (side-evidence-data-new-puncture-addresses value) address<?))
+   (list 'reconstruction
+         (checked-term->datum (side-evidence-data-reconstruction value)))
+   (list 'reconstructs? (side-evidence-data-reconstructs? value))))
+
+(define (side-evidence-product->datum value)
+  (list
+   'side-evidence-product-certificate
+   (list 'outer
+         (checked-term->datum
+          (side-evidence-product-certificate-outer value)))
+   (list 'inner
+         (checked-term->datum
+          (side-evidence-product-certificate-inner value)))
+   (list 'composed
+         (checked-term->datum
+          (side-evidence-product-certificate-composed value)))
+   (list 'prefixed-inner-frontier
+         (sort
+          (side-evidence-product-certificate-prefixed-inner-frontier value)
+          address<?))
+   (list 'expected-forest
+         (proof-forest->datum
+          (side-evidence-product-certificate-expected-forest value)))
+   (list 'frontier-equal?
+         (side-evidence-product-certificate-frontier-equal? value))
+   (list 'forest-equal?
+         (side-evidence-product-certificate-forest-equal? value))
+   (list 'reconstruction-holds?
+         (side-evidence-product-certificate-reconstruction-holds? value))))
+
+(define (relation-pair<? left right)
+  (or (< (car left) (car right))
+      (and (= (car left) (car right))
+           (< (cadr left) (cadr right)))))
+
+(define (component-relation-power->datum value)
+  (list
+   'component-relation-power
+   (list 'power (component-relation-power-power value))
+   (list 'relation-pairs
+         (sort (component-relation-power-edges value) relation-pair<?))
+   (list 'checked-context
+         (checked-term->datum (component-relation-power-context value)))
+   (list 'direct-trace
+         (value->datum (component-relation-power-direct-trace value)))
+   (list 'direct-relation-pairs
+         (and (component-relation-power-direct-edges value)
+              (sort (component-relation-power-direct-edges value)
+                    relation-pair<?)))
+   (list 'agrees? (component-relation-power-agrees? value))))
+
+(define (component-recurrence->datum value)
+  (list
+   'component-recurrence-analysis
+   (list 'status (component-recurrence-analysis-status value))
+   (list 'source
+         (checked-term->datum (component-recurrence-analysis-source value)))
+   (list 'trace (value->datum (component-recurrence-analysis-trace value)))
+   (list*
+    'finite-relation-powers
+    (map component-relation-power->datum
+         (component-recurrence-analysis-powers value)))
+   (list 'repeat-start
+         (component-recurrence-analysis-repeat-start value))
+   (list 'period (component-recurrence-analysis-period value))
+   (list 'relation-state-count-bound
+         (component-recurrence-analysis-relation-state-count-bound value))
+   (list 'exhaustive-state-bound-reached?
+         (component-recurrence-analysis-exhaustive-state-bound-reached? value))
+   (list 'direct-power-agreement?
+         (component-recurrence-analysis-direct-power-agreement? value))
+   (list 'scalar-analysis
+         (component-scalar-analysis->datum
+          (component-recurrence-analysis-scalar-analysis value)))
+   (list 'scalar-calibrated?
+         (component-recurrence-analysis-scalar-calibrated? value))
+   (list 'local-scalar-distribution
+         (component-recurrence-analysis-local-scalar-distribution value))))
+
+(define (pointed-input-position->datum value)
+  (list
+   'pointed-input-position
+   (list 'index (pointed-input-position-index value))
+   (list 'outer-address (pointed-input-position-outer-address value))
+   (list 'boundary
+         (hypersequent->datum (pointed-input-position-boundary value)))
+   (list 'input (checked-term->datum (pointed-input-position-input value)))))
+
+(define (pointed-coaction-choice->datum value)
+  (list
+   'pointed-coaction-choice
+   (list 'position
+         (pointed-input-position-index
+          (pointed-coaction-choice-position value)))
+   (list 'kind (pointed-coaction-choice-kind value))
+   (list 'relative-addresses
+         (sort (pointed-coaction-choice-relative-addresses value) address<?))
+   (list 'cut-witness
+         (value->datum (pointed-coaction-choice-witness value)))
+   (list 'detached-forest
+         (proof-forest->datum
+          (pointed-coaction-choice-detached-forest value)))
+   (list 'retained-input
+         (checked-term->datum
+          (pointed-coaction-choice-retained-input value)))))
+
+(define (pointed-choice-tuple->datum value)
+  (list
+   'pointed-choice-tuple
+   (list*
+    'ordered-choices
+    (map pointed-coaction-choice->datum
+         (pointed-choice-tuple-choices value)))
+   (list 'multiplied-detached-forest
+         (proof-forest->datum
+          (pointed-choice-tuple-detached-forest value)))
+   (list*
+    'ordered-retained-inputs
+    (for/list ([input (in-list (pointed-choice-tuple-retained-inputs value))]
+               [position (in-naturals 1)])
+      (list 'position position (checked-term->datum input))))
+   (list 'global-addresses
+         (sort (pointed-choice-tuple-global-addresses value) address<?))))
+
+(define (pointed-input-coaction->datum value)
+  (list
+   'pointed-input-coaction-certificate
+   (list 'protected-positions
+         (pointed-input-coaction-certificate-protected-positions value))
+   (list*
+    'ordered-positions
+    (map pointed-input-position->datum
+         (pointed-input-coaction-certificate-positions value)))
+   (list*
+    'ordered-choice-families
+    (for/list
+        ([family
+          (in-list
+           (pointed-input-coaction-certificate-choice-families value))]
+         [position (in-naturals 1)])
+      (list*
+       'position
+       position
+       (map pointed-coaction-choice->datum family))))
+   (list 'tuple-count
+         (pointed-input-coaction-certificate-tuple-count value))
+   (list*
+    'tuples
+    (map pointed-choice-tuple->datum
+         (pointed-input-coaction-certificate-tuples value)))))
+
+(define (grafting-choice-certificate->datum value)
+  (list
+   'grafting-choice-witness
+   (list 'choice-tuple
+         (pointed-choice-tuple->datum
+          (grafting-choice-certificate-choice-tuple value)))
+   (list 'grafted-remainder
+         (checked-term->datum
+          (grafting-choice-certificate-grafted-remainder value)))
+   (list 'global-cut-witness
+         (cut-witness->datum
+          (grafting-choice-certificate-global-witness value)))
+   (list 'reconstruction
+         (checked-term->datum
+          (grafting-choice-certificate-reconstruction value)))
+   (list 'reconstructs?
+         (grafting-choice-certificate-reconstructs? value))
+   (list 'forest-agrees?
+         (grafting-choice-certificate-forest-agrees? value))
+   (list 'remainder-agrees?
+         (grafting-choice-certificate-remainder-agrees? value))
+   (list 'tensor
+         (formal-sum->datum
+          (grafting-choice-certificate-tensor value)))))
+
+(define (grafting-reverse-certificate->datum value)
+  (list
+   'grafting-reverse-witness
+   (list 'cut-witness
+         (cut-witness->datum
+          (grafting-reverse-certificate-witness value)))
+   (list 'recovered-choice-tuple
+         (pointed-choice-tuple->datum
+          (grafting-reverse-certificate-recovered-choice-tuple value)))
+   (list 'forward-addresses
+         (sort (grafting-reverse-certificate-forward-addresses value)
+               address<?))
+   (list 'addresses-round-trip?
+         (grafting-reverse-certificate-addresses-round-trip? value))
+   (list 'choices-round-trip?
+         (grafting-reverse-certificate-choices-round-trip? value))))
+
+(define (typed-grafting-cocycle->datum value)
+  (list
+   'typed-grafting-cocycle-certificate
+   (list 'occurrence
+         (occurrence->datum
+          (typed-grafting-cocycle-certificate-occurrence value)))
+   (list*
+    'ordered-premise-profile
+    (for/list
+        ([boundary
+          (in-list
+           (typed-grafting-cocycle-certificate-premise-profile value))]
+         [slot (in-naturals 1)])
+      (list 'slot slot (hypersequent->datum boundary))))
+   (list*
+    'ordered-inputs
+    (for/list
+        ([input (in-list (typed-grafting-cocycle-certificate-inputs value))]
+         [slot (in-naturals 1)])
+      (list 'slot slot (checked-term->datum input))))
+   (list 'grafted
+         (checked-term->datum
+          (typed-grafting-cocycle-certificate-grafted value)))
+   (list 'input-coaction
+         (pointed-input-coaction->datum
+          (typed-grafting-cocycle-certificate-input-coaction value)))
+   (list 'whole-tree-endpoint
+         (formal-sum->datum
+          (typed-grafting-cocycle-certificate-endpoint value)))
+   (list*
+    'forward-witnesses
+    (map grafting-choice-certificate->datum
+         (sort
+          (typed-grafting-cocycle-certificate-forward-certificates value)
+          address-set<?
+          #:key
+          (lambda (certificate)
+            (cut-witness-addresses
+             (grafting-choice-certificate-global-witness certificate))))))
+   (list*
+    'reverse-witnesses
+    (map grafting-reverse-certificate->datum
+         (sort
+          (typed-grafting-cocycle-certificate-reverse-certificates value)
+          address-set<?
+          #:key
+          (lambda (certificate)
+            (cut-witness-addresses
+             (grafting-reverse-certificate-witness certificate))))))
+   (list 'recursive-collected-tensor
+         (formal-sum->datum
+          (typed-grafting-cocycle-certificate-recursive-coproduct value)))
+   (list 'direct-collected-tensor
+         (formal-sum->datum
+          (typed-grafting-cocycle-certificate-direct-coproduct value)))
+   (list 'defect-kind
+         (if (typed-grafting-cocycle-certificate-equal? value)
+             'zero-cocycle-defect
+             'nonzero-cocycle-defect))
+   (list 'forward-valid?
+         (typed-grafting-cocycle-certificate-forward-valid? value))
+   (list 'reverse-valid?
+         (typed-grafting-cocycle-certificate-reverse-valid? value))
+   (list 'witness-bijection?
+         (typed-grafting-cocycle-certificate-witness-bijection? value))
+   (list 'equal?
+         (typed-grafting-cocycle-certificate-equal? value))))
+
+(define (vertex-origin->datum value)
+  (list
+   'vertex-origin
+   (list 'address (vertex-origin-address value))
+   (list 'kind (vertex-origin-kind value))
+   (list 'position (vertex-origin-position value))
+   (list 'outer-address (vertex-origin-outer-address value))
+   (list 'relative-address (vertex-origin-relative-address value))
+   (list 'occurrence-id
+         (concrete-occurrence-id
+          (checked-node-occurrence (vertex-origin-vertex value))))))
+
+(define (protected-cut-record->datum value)
+  (list
+   'protected-cut-record
+   (list 'addresses
+         (sort (protected-cut-record-addresses value) address<?))
+   (list 'disposition (protected-cut-record-disposition value))
+   (list*
+    'selected-origins
+    (map vertex-origin->datum
+         (sort (protected-cut-record-selected-origins value)
+               address<? #:key vertex-origin-address)))
+   (list 'cut-witness
+         (cut-witness->datum (protected-cut-record-witness value)))
+   (list 'retained-context
+         (checked-term->datum
+          (protected-cut-record-retained-context value)))
+   (list 'reconstruction
+         (checked-term->datum
+          (protected-cut-record-reconstruction value)))
+   (list 'reconstructs? (protected-cut-record-reconstructs? value))
+   (list 'cancellation-round-trip?
+         (protected-cut-record-cancellation-round-trip? value))
+   (list 'tensor
+         (formal-sum->datum (protected-cut-record-tensor value)))))
+
+(define (protected-choice-certificate->datum value)
+  (list
+   'protected-choice-witness
+   (list 'choice-tuple
+         (pointed-choice-tuple->datum
+          (protected-choice-certificate-choice-tuple value)))
+   (list 'evaluated-remainder
+         (checked-term->datum
+          (protected-choice-certificate-evaluated-remainder value)))
+   (list 'global-cut-witness
+         (cut-witness->datum
+          (protected-choice-certificate-global-witness value)))
+   (list 'reconstruction
+         (checked-term->datum
+          (protected-choice-certificate-reconstruction value)))
+   (list 'reconstructs?
+         (protected-choice-certificate-reconstructs? value))
+   (list 'forest-agrees?
+         (protected-choice-certificate-forest-agrees? value))
+   (list 'remainder-agrees?
+         (protected-choice-certificate-remainder-agrees? value))
+   (list 'tensor
+         (formal-sum->datum
+          (protected-choice-certificate-tensor value)))))
+
+(define (protected-factorization->datum value)
+  (define defect (protected-factorization-certificate-defect value))
+  (list
+   'protected-factorisation-defect-certificate
+   (list 'context
+         (checked-term->datum
+          (protected-factorization-certificate-context value)))
+   (list*
+    'addressed-telescope
+    (map telescope-entry->datum
+         (protected-factorization-certificate-telescope value)))
+   (list*
+    'ordered-inputs
+    (for/list
+        ([input
+          (in-list (protected-factorization-certificate-inputs value))]
+         [position (in-naturals 1)])
+      (list 'position position (checked-term->datum input))))
+   (list 'protected-positions
+         (protected-factorization-certificate-protected-positions value))
+   (list 'output
+         (checked-term->datum
+          (protected-factorization-certificate-output value)))
+   (list 'protected-input-coaction
+         (pointed-input-coaction->datum
+          (protected-factorization-certificate-input-coaction value)))
+   (list*
+    'protected-choice-witnesses
+    (map protected-choice-certificate->datum
+         (sort
+          (protected-factorization-certificate-choice-certificates value)
+          address-set<?
+          #:key
+          (lambda (certificate)
+            (cut-witness-addresses
+             (protected-choice-certificate-global-witness certificate))))))
+   (list*
+    'vertex-provenance
+    (map vertex-origin->datum
+         (sort
+          (protected-factorization-certificate-vertex-origins value)
+          address<? #:key vertex-origin-address)))
+   (list*
+    'cut-records
+    (map protected-cut-record->datum
+         (sort
+          (protected-factorization-certificate-cut-records value)
+          address-set<? #:key protected-cut-record-addresses)))
+   (list 'direct-root-coaction
+         (formal-sum->datum
+          (protected-factorization-certificate-direct-coaction value)))
+   (list 'evaluated-protected-input-coaction
+         (formal-sum->datum
+          (protected-factorization-certificate-evaluated-input-coaction
+           value)))
+   (list 'defect (formal-sum->datum defect))
+   (list 'defect-kind
+         (if (formal-zero? defect)
+             'zero-protected-defect
+             'nonzero-protected-defect))
+   (list 'residual-witness-sum
+         (formal-sum->datum
+          (protected-factorization-certificate-residual-witness-sum value)))
+   (list 'cancellation-bijection?
+         (protected-factorization-certificate-cancellation-bijection? value))
+   (list 'support-theorem?
+         (protected-factorization-certificate-support-theorem? value))
+   (list 'collected-coefficients-agree?
+         (protected-factorization-certificate-collected-coefficients-agree?
+          value))))
+
+(define (calculus-recurrence-report->datum value)
+  (list
+   'calculus-recurrence-report
+   (list 'calculus
+         (equipped-calculus->datum
+          (calculus-recurrence-report-calculus value)))
+   (list 'boundary
+         (hypersequent->datum
+          (calculus-recurrence-report-boundary value)))
+   (list 'status (calculus-recurrence-report-status value))
+   (list 'component-bound
+         (calculus-recurrence-report-component-bound value))
+   (list 'limit (calculus-recurrence-report-limit value))
+   (list 'graph
+         (derivative-frame-graph->datum
+          (calculus-recurrence-report-graph value)))
+   (list 'recurrence
+         (value->datum (calculus-recurrence-report-recurrence value)))
+   (list 'return-report
+         (value->datum (calculus-recurrence-report-return-report value)))))
+
+(define (return-context-report->datum value)
+  (list
+   'return-context-report
+   (list 'calculus
+         (equipped-calculus->datum
+          (return-context-report-calculus value)))
+   (list 'boundary
+         (hypersequent->datum (return-context-report-boundary value)))
+   (list 'source
+         (checked-term->datum (return-context-report-source value)))
+   (list 'status (return-context-report-status value))
+   (list 'component-status
+         (return-context-report-component-status value))
+   (list 'component-bound
+         (return-context-report-component-bound value))
+   (list 'limit (return-context-report-limit value))
+   (list 'first-return-analysis
+         (value->datum (return-context-report-certificate value)))
+   (list 'component-recurrence
+         (value->datum
+          (return-context-report-component-recurrence value)))))
+
+(define (grafting-cocycle-report->datum value)
+  (list
+   'grafting-cocycle-report
+   (list 'calculus
+         (equipped-calculus->datum
+          (grafting-cocycle-report-calculus value)))
+   (list 'occurrence
+         (occurrence->datum (grafting-cocycle-report-occurrence value)))
+   (list*
+    'ordered-inputs
+    (for/list ([input (in-list (grafting-cocycle-report-inputs value))]
+               [slot (in-naturals 1)])
+      (list 'slot slot (checked-term->datum input))))
+   (list 'status (grafting-cocycle-report-status value))
+   (list 'limit (grafting-cocycle-report-limit value))
+   (list 'certificate
+         (value->datum (grafting-cocycle-report-certificate value)))))
+
+(define (protected-defect-report->datum value)
+  (list
+   'protected-defect-report
+   (list 'calculus
+         (equipped-calculus->datum
+          (protected-defect-report-calculus value)))
+   (list 'context
+         (checked-term->datum (protected-defect-report-context value)))
+   (list*
+    'ordered-inputs
+    (for/list ([input (in-list (protected-defect-report-inputs value))]
+               [position (in-naturals 1)])
+      (list 'position position (checked-term->datum input))))
+   (list 'protected-positions
+         (protected-defect-report-protected-positions value))
+   (list 'status (protected-defect-report-status value))
+   (list 'limit (protected-defect-report-limit value))
+   (list 'certificate
+         (value->datum (protected-defect-report-certificate value)))))
 
 (define (equipped-calculus->datum value)
   (list*
@@ -883,6 +1828,64 @@
 
 (define (value->datum value)
   (cond
+    [(calculus-recurrence-report? value)
+     (calculus-recurrence-report->datum value)]
+    [(return-context-report? value) (return-context-report->datum value)]
+    [(grafting-cocycle-report? value)
+     (grafting-cocycle-report->datum value)]
+    [(protected-defect-report? value)
+     (protected-defect-report->datum value)]
+    [(typed-grafting-cocycle-certificate? value)
+     (typed-grafting-cocycle->datum value)]
+    [(protected-factorization-certificate? value)
+     (protected-factorization->datum value)]
+    [(boundary-recurrence? value) (boundary-recurrence->datum value)]
+    [(derivative-frame-graph? value) (derivative-frame-graph->datum value)]
+    [(derivative-frame-edge? value) (derivative-frame-edge->datum value)]
+    [(frame-off-spine? value) (frame-off-spine->datum value)]
+    [(frame-productivity? value) (frame-productivity->datum value)]
+    [(productivity-witness? value) (productivity-witness->datum value)]
+    [(frame-cycle? value) (frame-cycle->datum value)]
+    [(frame-realisation? value) (frame-realisation->datum value)]
+    [(first-return-certificate? value) (first-return-certificate->datum value)]
+    [(return-power-certificate? value)
+     (return-power-certificate->datum value)]
+    [(return-polynomial-data? value) (return-polynomial->datum value)]
+    [(return-spine-decomposition? value)
+     (return-spine-decomposition->datum value)]
+    [(return-spine-frame? value) (return-spine-frame->datum value)]
+    [(return-expansion-step? value) (return-expansion-step->datum value)]
+    [(return-iterated-witness? value)
+     (return-iterated-witness->datum value)]
+    [(return-chain-witness? value) (return-chain-witness->datum value)]
+    [(return-witness-bijection? value)
+     (return-witness-bijection->datum value)]
+    [(return-tensor-evaluation? value)
+     (return-tensor-evaluation->datum value)]
+    [(unfolding-layer? value) (unfolding-layer->datum value)]
+    [(seeded-unfolding-certificate? value)
+     (seeded-unfolding-certificate->datum value)]
+    [(side-evidence-data? value) (side-evidence-data->datum value)]
+    [(side-evidence-product-certificate? value)
+     (side-evidence-product->datum value)]
+    [(component-recurrence-analysis? value)
+     (component-recurrence->datum value)]
+    [(component-relation-power? value)
+     (component-relation-power->datum value)]
+    [(pointed-input-position? value) (pointed-input-position->datum value)]
+    [(pointed-coaction-choice? value)
+     (pointed-coaction-choice->datum value)]
+    [(pointed-choice-tuple? value) (pointed-choice-tuple->datum value)]
+    [(pointed-input-coaction-certificate? value)
+     (pointed-input-coaction->datum value)]
+    [(grafting-choice-certificate? value)
+     (grafting-choice-certificate->datum value)]
+    [(grafting-reverse-certificate? value)
+     (grafting-reverse-certificate->datum value)]
+    [(vertex-origin? value) (vertex-origin->datum value)]
+    [(protected-choice-certificate? value)
+     (protected-choice-certificate->datum value)]
+    [(protected-cut-record? value) (protected-cut-record->datum value)]
     [(derivation-analysis? value) (derivation-analysis->datum value)]
     [(context-analysis? value) (context-analysis->datum value)]
     [(forest-analysis? value) (forest-analysis->datum value)]
@@ -946,6 +1949,30 @@
 
 (define (analysis->datum value)
   (unless (or (derivation-analysis? value)
+              (calculus-recurrence-report? value)
+              (return-context-report? value)
+              (grafting-cocycle-report? value)
+              (protected-defect-report? value)
+              (typed-grafting-cocycle-certificate? value)
+              (pointed-input-coaction-certificate? value)
+              (protected-factorization-certificate? value)
+              (boundary-recurrence? value)
+              (derivative-frame-graph? value)
+              (frame-cycle? value)
+              (frame-realisation? value)
+              (first-return-certificate? value)
+              (return-power-certificate? value)
+              (return-polynomial-data? value)
+              (return-spine-decomposition? value)
+              (return-iterated-witness? value)
+              (return-chain-witness? value)
+              (return-witness-bijection? value)
+              (unfolding-layer? value)
+              (seeded-unfolding-certificate? value)
+              (side-evidence-data? value)
+              (side-evidence-product-certificate? value)
+              (component-recurrence-analysis? value)
+              (component-relation-power? value)
               (context-analysis? value)
               (forest-analysis? value)
               (hopf-law-analysis? value)

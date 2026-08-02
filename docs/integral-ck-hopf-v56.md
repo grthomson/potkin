@@ -127,6 +127,46 @@ S(u(g))    = -u(g) + g join u(Box)
 S(g join g)=  g join g.
 ```
 
+## Typed cocycles and first-return evaluation
+
+The rooted coaction also supports a typed multi-input rule-grafting theorem.
+Each ordered premise independently supplies an empty, proper, whole, or typed-
+hole pointed choice; detached coordinates combine by the existing forest
+product while retained inputs remain ordered. `typed-grafting-cocycle`
+constructs this recursive tensor independently and checks its two-way,
+address-prefixed correspondence with every CK cut below the grafted root.
+For a general positive context, `protected-context-factorization-defect`
+retains the exact residual cut support left after cancelling cuts wholly
+inside selected protected input regions.
+
+For one exact calculus and boundary `G`, the boundary-return character is one
+on a positive, exactly-one-hole `G -> G` connected context and extends
+multiplicatively to forests. Its reduced functional is literally
+`bar-rho = rho - epsilon`. The convolution implementation evaluates every
+coordinate of the actual iterated CK coproduct. At occurrence level it also
+retains annihilated endpoints, off-spine cuts, and multicuts.
+
+Unique-hole constructor decomposition identifies each nonroot proper `G`
+return on the puncture spine. Recursive include/omit choices are in explicit
+bijection with the surviving rightmost-expanded CK witnesses, giving
+
+```text
+(bar-rho ^ star n)(C) = binomial(r_G(C), n-1)
+R_G,C(q)               = q(1+q)^r_G(C).
+```
+
+The existing antipode is then evaluated directly. The exact sign laws are
+
+```text
+R_G,C(-1)       = rho_G(S(C))
+-rho_G(S(C))    = 1 iff r_G(C) = 0.
+```
+
+The second line is the first-return indicator. See
+`hopf-recurrence-v56.md` for the witness maps, repeated unfolding,
+side-evidence product, derivative-frame construction, and component-resolved
+recurrence.
+
 ## Formal revision maps
 
 For a calculus revision `K0 -> K1`, `formal-revision-map` accepts a formal
@@ -191,15 +231,25 @@ a formal proof for every finite equipped calculus. Each computation on a
 finite input terminates, although the complete algebra for a calculus may
 have infinite rank.
 
+The return theorem has a separate, deliberately smaller falsification oracle:
+exactly 11 generated positive one-hole contexts through degree three, with
+distribution `(1 3 7)`. It reports generated objects rather than using a
+larger assertion total as a target. Finite agreement is not the proof of the
+universal theorem; recursive constructor decomposition and the explicit CK
+witness bijection are the theorem-level certificate.
+
 ## Deferred scope
 
 The implementation does not provide coefficient rings other than the
 integers, completions or infinite series, explicit quotient modules or
-arbitrary Hopf ideals, proof-identity quotients or commuting conversions,
+arbitrary Hopf ideals or coideal-closure solvers, proof-identity quotients or commuting conversions,
 coherent component reindexing, tag-family deletion, Birkhoff factorisation or
-renormalisation, Green functions, resource polynomials, causal tracelets,
-history polynomials, harmony, normalization, Cut elimination, further repair
-frontiers, positive-arity repair, proof search, HCP,
+renormalisation, Green functions, general resource polynomials, causal
+tracelets, general history polynomials beyond the finite return polynomial,
+general Hochschild cochain complexes,
+proof-reduction loops, cyclic-proof progress, focusing completeness, harmony,
+normalization, Cut elimination, further repair frontiers, positive-arity
+repair, general proof search and arbitrary filling-fibre enumeration, HCP,
 execution/concurrency/effects/cancellation, a GUI, or a custom language.
 
 Incidence remains trusted occurrence metadata rather than an independently

@@ -42,6 +42,15 @@ The implemented slice contains:
 - address-resolved component traces for open contexts, local relational
   classifications and scalar structural defects, and nonempty-cut
   CK-resolved component profiles with exact detached alignment;
+- typed pointed-input coactions, multi-input grafting cocycle certificates,
+  and protected context factorisation defects with occurrence-level support
+  and local-residue laws;
+- occurrence-resolved derivative-frame graphs, deterministic off-spine
+  productivity, and paired realised-cycle construction/context decomposition;
+- calculus-scoped boundary-return characters, actual CK convolution powers,
+  recursive return-chain witness bijections, first-return antipode
+  certificates, return polynomials, unfolding, side-evidence products, and
+  supplied-incidence component recurrence;
 - immutable finite-input derivation, context, forest, and Hopf-law reports
   with deterministic structural rendering and explicit analysis limits;
 - the connected-graded antipode and both convolution identities;
@@ -54,14 +63,16 @@ The implemented slice contains:
 
 The accurate implemented claim is the integral calculus-relative CK Hopf
 algebra on locally typed, positive-vertex complete and punctured proof-tree
-presentations. The executable bounded law checks are evidence for this exact
-implementation; they are not a machine-checked mathematical proof of every
-law or an implementation of every result in the manuscript.
+presentations, together with the finite typed grafting, protected-support,
+and first-return certificates described below. The executable bounded law
+checks are evidence for this implementation; they are not a machine-checked
+proof of every manuscript result.
 
-See `docs/semantic-contract-v56.md` for the representation contract and
-`docs/integral-ck-hopf-v56.md` for the algebra, laws, revision maps, and exact
-deferred scope.  `docs/research-workbench-v56.md` describes the declaration,
-analysis, and reporting workflow.
+See `docs/semantic-contract-v56.md` for the representation contract,
+`docs/integral-ck-hopf-v56.md` for the algebra and laws, and
+`docs/hopf-recurrence-v56.md` for the typed grafting and first-return theorem
+layer. `docs/research-workbench-v56.md` describes the declaration, analysis,
+and reporting workflow.
 
 ## Layout
 
@@ -77,8 +88,8 @@ potkin/
   hopf/           Coproduct, rooted operations, antipode, and revision maps
   dsl.rkt         Finite declaration EDSL public facade
   dsl/            Declarations, checked proof terms, contexts, and filling points
-  analysis.rkt    Component-trace, premise-ancestry, and convolution facade
-  analysis/       Component profiles, causal ideals, orders, and bounded counts
+  analysis.rkt    Component, causal, cocycle, frame, and recurrence facade
+  analysis/       Component profiles, typed cocycles, frames, and recurrence
   tool.rkt        Deterministic research-report public facade
   tool/           Immutable reports and structural presentation
   main.rkt        Public package entry point
@@ -89,6 +100,7 @@ examples/
   dsl-open-context.rkt
   dsl-hypersequent.rkt
   dsl-communication-assembly.rkt
+  dsl-hopf-recurrence.rkt
 tests/
   smoke-test.rkt  Preserved installation smoke test
 ```
@@ -107,6 +119,7 @@ From PowerShell:
 & 'C:\Program Files\Racket\racket.exe' -S . examples\dsl-open-context.rkt
 & 'C:\Program Files\Racket\racket.exe' -S . examples\dsl-hypersequent.rkt
 & 'C:\Program Files\Racket\racket.exe' -S . examples\dsl-communication-assembly.rkt
+& 'C:\Program Files\Racket\racket.exe' -S . examples\dsl-hopf-recurrence.rkt
 & 'C:\Program Files\Racket\raco.exe' test tests\smoke-test.rkt
 & 'C:\Program Files\Racket\raco.exe' test -j 4 .
 ```
@@ -206,8 +219,21 @@ component action: nondegenerate Communication has `K_2,2`, while connected
 bar-assembly has a disjoint-union bijection. Neither relation asserts any
 formula-occurrence incidence.
 
+`examples/dsl-hopf-recurrence.rkt` declares a seeded unary return frame and a
+binary side-evidence frame. It checks the typed grafting witness bijection,
+the polynomials `q` and `q(1+q)`, three-fold checked unfolding, seeded tensor
+separation, and the side-evidence product, then renders the calculus and
+return-context recurrence reports.
+
 The running report keeps five occurrence-level CK witnesses distinct from
 the six collected coproduct terms.  It also shows the final-corolla tensor,
 `3q + q^2` cut polynomial, ancestry width two, and the two root-first
 histories.  Expensive analyses are budgeted; exceeding a budget renders
 `not computed: limit`, never zero or a failed law.
+
+The recurrence layer includes one separately labelled bounded falsification
+oracle over exactly 11 generated positive one-hole contexts through degree
+three. It reports the generated-object count and does not enlarge the global
+degree-four fixture. Its finite agreement is regression evidence, not the
+proof of the universal statement; that certificate is organised by recursive
+constructor decomposition and an explicit two-way CK witness bijection.

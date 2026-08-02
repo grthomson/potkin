@@ -140,14 +140,71 @@ Their roots and retained corollas remain different. Communication supplies
 the component relation `K_2,2`, while assembly supplies the disjoint-union
 bijection; neither is inferred or treated as forest multiplication.
 
+## Typed grafting and protected defects
+
+`typed-pointed-input-coaction` retains ordered telescope positions,
+independent premise-level choices, the multiplied detached forest, the
+ordered right tuple, and every prefixed relative cut address. A typed pointed
+hole is the existing checked `Box` value and may occur only in that retained
+input tuple.
+
+`typed-grafting-cocycle` applies one exact occurrence to compatible pointed
+inputs and independently constructs the typed grafting/comodule equation.
+Its forward certificates map choice tuples to below-root CK witnesses; its
+reverse certificates restrict each witness back to the ordered input regions.
+Both round trips, every reconstruction, and direct/recursive collected tensor
+equality are public certificate fields.
+
+`protected-context-factorization-defect` evaluates a selected protected-input
+coaction below a positive context. Its uncollected cut records classify the
+empty cancellation, wholly protected cancellation, fixed-context residual,
+unprotected-input residual, and mixed residual. The support theorem and
+collected coefficient agreement are explicit. Local replacement residues
+expose identity, antisymmetry, and telescoping without claiming an arbitrary
+ideal or congruence decision.
+
+## Recurrence workbench
+
+`derivative-frame-graph-of` and `boundary-recurrence-of` distinguish acyclic,
+raw-unrealised, realised-no-seed, and realised-with-seed boundaries. The graph
+retains exact occurrence/slot parallel edges. Productivity stores one
+deterministic minimum-height proof per boundary. Realisation and unique-hole
+decomposition supply the two directions of the graph/context theorem.
+
+`make-boundary-return-character`, `certify-return-convolution-power`, and
+`certify-first-return` operate on one exact calculus and boundary. Every power
+certificate contains the actual iterated CK coproduct, all uncollected
+occurrence witnesses and their reduced-character evaluations, recursively
+constructed return chains, and the explicit two-way witness bijection. The
+first-return certificate evaluates the existing antipode and reports:
+
+```text
+polynomial at -1        = rho(S(C))
+first-return indicator  = -rho(S(C)).
+```
+
+`unfold-first-return-context` retains a polynomial certificate at every
+checked self-insertion layer. `certify-seeded-unfolding` reports literal
+separation addresses and the actual iterated-coproduct coefficient.
+`side-evidence-factorization` and `check-side-evidence-product` retain the
+off-spine CK witness and multiplicative frontier law; `Box^G` has unit side
+evidence and no manufactured cut. `component-recurrence-powers` compares
+finite supplied-incidence relation powers with direct traces of recursively
+constructed context powers.
+
 ## Reports
 
 The stable inspection entry points are:
 
 - `analyze-derivation` for one connected checked derivation;
 - `analyze-context` for one checked open context;
-- `analyze-forest` for one commutative proof forest; and
-- `check-hopf-laws` for exact checks on the supplied finite value.
+- `analyze-forest` for one commutative proof forest;
+- `check-hopf-laws` for exact checks on the supplied finite value;
+- `analyze-grafting-cocycle` and `analyze-protected-defect` for typed cocycle
+  and finite residual reports;
+- `analyze-calculus-recurrence` for one graph boundary; and
+- `analyze-return-context` for convolution, antipode, side-evidence, and
+  component recurrence data attached to one return context.
 
 They return immutable report values with public predicates and accessors.
 `analysis->datum` converts any report to deterministic symbolic data, and
@@ -240,8 +297,8 @@ an explicit `#:limit #f` opt-in for callers who accept its cost.
 
 ## Scope
 
-This workbench analyzes exact finite proof presentations.  It does not add
-proof search, automatic hole filling, rule schemata, metavariable
+This workbench analyzes exact finite proof presentations. It does not add
+general bidirectional proof search, arbitrary automatic hole filling, rule schemata, metavariable
 substitution, unification, proof quotients, commuting conversions, implicit
 Weakening/Contraction/Mix, assembly, or Gentzen Cut. Component relations and
 Communication profiles are supplied and endpoint-validated, not inferred;
@@ -253,6 +310,7 @@ Also deferred are a custom `#lang potkin`, a command-line interface, GUI,
 JSON/project persistence, dependent-type migration, a proof-assistant
 companion, formula/resource substitution polynomials, completed Green or
 Faà di Bruno series, coherent component reindexing, arbitrary coideal search,
-formula-occurrence incidence, protected-input coactions or residues,
-normalization and Cut elimination, coefficient rings other than the integers,
-and additional repair-frontier machinery.
+formula-occurrence incidence, general Hochschild complexes, proof-reduction
+loops, cyclic-proof soundness/progress, focusing completeness, indexed nested
+sequents, normalization and Cut elimination, coefficient rings other than the
+integers, and additional repair-frontier machinery.

@@ -7,7 +7,8 @@
   '("examples/dsl-running-factorisation.rkt"
     "examples/dsl-open-context.rkt"
     "examples/dsl-hypersequent.rkt"
-    "examples/dsl-communication-assembly.rkt"))
+    "examples/dsl-communication-assembly.rkt"
+    "examples/dsl-hopf-recurrence.rkt"))
 (define pkg-desc "Executable CK/hypersequent proof-workflow kernel")
 (define version "0.1.0")
 (define pkg-authors '(gavin))
