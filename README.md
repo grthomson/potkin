@@ -19,12 +19,16 @@ The implemented slice contains:
 - exact repair plans for withdrawn nullary material grounds, including the separate whole-proof endpoint;
 - immutable finite sparse sums over the integers, with rank-one proof-forest
   algebra, ordered finite tensor ranks, exact calculus provenance, normalized
-  coefficients, and checked coordinate expansion and contraction; and
+  coefficients, and checked coordinate expansion and contraction;
+- the collected, full multiplicative CK coproduct on complete and punctured
+  positive-vertex trees, together with its counit and vertex grading;
+- exact counit, coassociativity, multiplicativity, and grading checks over a
+  bounded exhaustive locally admitted fixture; and
 - the preserved standard Redex smoke example and test.
 
-The algebraic layer currently provides formal sums and componentwise tensor
-algebra only. It does not yet collect CK witnesses into a coproduct or
-implement a counit, grading, antipode, or Hopf maps.
+The antipode and formal revision/deletion Hopf maps remain the next algebraic
+milestone. The executable bounded law checks are evidence for this exact
+presentation; they are not a machine-checked mathematical proof.
 
 See `docs/semantic-contract-v56.md` for the exact scope and deferred features.
 
@@ -38,6 +42,8 @@ potkin/
   kernel/         Boundaries, checking, contexts, forests, and CK cuts
   algebra.rkt     Integral formal-sum public facade
   algebra/        Sparse forest and ordered-tensor sums
+  hopf.rkt        CK coalgebra public facade
+  hopf/           Coproduct, counit, and vertex grading
   main.rkt        Public package entry point
 examples/
   smoke.rkt       Preserved installation smoke example
