@@ -1,11 +1,11 @@
 # Potkin
 
 Executable Racket/Redex presentation of the project's calculus-relative
-proof/context kernel.
+proof/context kernel and integral proof-forest algebra.
 
 ## Status
 
-The implemented static slice contains:
+The implemented slice contains:
 
 - Racket package metadata;
 - canonical multiset sequent and hypersequent boundaries;
@@ -16,8 +16,15 @@ The implemented static slice contains:
 - prefix-free, address-indexed CK cut witnesses and lazy cut enumeration;
 - immutable compatible calculus revisions, exact liveness diagnostics, and checked lifting;
 - explicit basis-level constructor deletion for terms and proof forests;
-- exact repair plans for withdrawn nullary material grounds, including the separate whole-proof endpoint; and
+- exact repair plans for withdrawn nullary material grounds, including the separate whole-proof endpoint;
+- immutable finite sparse sums over the integers, with rank-one proof-forest
+  algebra, ordered finite tensor ranks, exact calculus provenance, normalized
+  coefficients, and checked coordinate expansion and contraction; and
 - the preserved standard Redex smoke example and test.
+
+The algebraic layer currently provides formal sums and componentwise tensor
+algebra only. It does not yet collect CK witnesses into a coproduct or
+implement a counit, grading, antipode, or Hopf maps.
 
 See `docs/semantic-contract-v56.md` for the exact scope and deferred features.
 
@@ -29,6 +36,8 @@ potkin/
   model/          Redex static kernel
   kernel.rkt      Ordinary-Racket public facade
   kernel/         Boundaries, checking, contexts, forests, and CK cuts
+  algebra.rkt     Integral formal-sum public facade
+  algebra/        Sparse forest and ordered-tensor sums
   main.rkt        Public package entry point
 examples/
   smoke.rkt       Preserved installation smoke example
