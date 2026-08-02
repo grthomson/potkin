@@ -5,8 +5,18 @@ This repository implements the static calculus-relative proof/context kernel des
 ## Implemented representation
 
 - Formula contexts are canonical finite multisets of immutable formula data.
+- A finite formula-signature descriptor may declare atom symbols and symbolic
+  operators of fixed nonnegative arity. Its generated formula constructors
+  return the same ordinary deeply immutable symbolic data consumed by
+  `formula-datum?`; the descriptor validates declarations and boundaries but
+  is not a second formula AST or a Hopf-provenance token.
 - A sequent is a pair of formula contexts. A hypersequent is a nonempty finite multiset of sequents. Equal displayed components retain distinct, local 1-based occurrence indices.
 - A concrete occurrence has a unique registry key, a disjoint kind/tag, opaque fully instantiated data, an ordered vector of whole-hypersequent premises, one whole-hypersequent conclusion, and optional opaque incidence data.
+- A finite rule signature declares only fixed tag, kind, and arity
+  decorations. Declaration macros derive those fields for fully instantiated
+  concrete occurrences and validate every occurrence profile and boundary
+  before returning an ordinary equipped calculus. They add no schemata,
+  metavariables, substitution, unification, or on-demand occurrence creation.
 - An equipped calculus is a finite immutable registry. Profile equality never grants admission: raw applications identify the exact registered occurrence key.
 - Raw candidates use the Redex-friendly shared syntax `(puncture)` or `(app occurrence-key child ...)`. Checked nodes and typed holes are separate values whose constructors are private to the checker.
 - Validation reports structured errors and checks registry membership, exact arity, exact ordered premise boundaries, and an optional expected root boundary. Checked terms expose root boundary, completeness, and vertex count.

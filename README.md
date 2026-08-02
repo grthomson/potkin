@@ -8,6 +8,9 @@ proof/context kernel and integral proof-forest algebra.
 The implemented slice contains:
 
 - Racket package metadata;
+- a finite declaration EDSL for symbolic formula signatures, canonical
+  sequent/hypersequent boundaries, fixed rule decorations, fully instantiated
+  concrete occurrences, and ordinary equipped calculi;
 - canonical multiset sequent and hypersequent boundaries;
 - immutable equipped-calculus registries of concrete occurrences;
 - a shared raw syntax with independent Redex and ordinary-Racket checkers;
@@ -53,6 +56,8 @@ potkin/
   algebra/        Sparse forest and ordered-tensor sums
   hopf.rkt        Integral CK Hopf public facade
   hopf/           Coproduct, grading, antipode, and formal revision maps
+  dsl.rkt         Finite declaration EDSL public facade
+  dsl/            Formula, boundary, rule, occurrence, and calculus declarations
   main.rkt        Public package entry point
 examples/
   smoke.rkt       Preserved installation smoke example
@@ -97,3 +102,37 @@ cuts (including the empty cut), and the two-leaf factorisation:
 (telescope (((1 1) S) ((1 2) T)))
 (reconstructs? #t)
 ```
+
+After installing or linking the package, the declaration surface is available
+from the ordinary entry point:
+
+```racket
+(require potkin)
+
+(define-formula-signature L
+  #:atoms [S T]
+  [fusion 2])
+
+(define HS  (hseq L (seq L [] => [S])))
+(define HT  (hseq L (seq L [] => [T])))
+(define HST (hseq L (seq L [] => [(fusion S T)])))
+
+(define-rule-signature Rules
+  [ground   #:kind material #:arity 0]
+  [fusion-R #:kind logical  #:arity 2])
+
+(define-occurrence bS
+  #:type ground #:instance S #:premises [] #:conclusion HS)
+(define-occurrence bT
+  #:type ground #:instance T #:premises [] #:conclusion HT)
+(define-occurrence m
+  #:type fusion-R #:instance (list S T)
+  #:premises [HS HT] #:conclusion HST)
+
+(define-calculus K
+  #:language L #:rules Rules #:occurrences [bS bT m])
+```
+
+Formula constructors still produce ordinary immutable symbolic data, and
+`K` is an ordinary `equipped-calculus?` value. Rule declarations describe
+fixed decorations only; they do not generate schematic rule instances.
