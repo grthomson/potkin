@@ -5,6 +5,7 @@
          "analysis/convolution.rkt"
          "analysis/cocycle.rkt"
          "analysis/derivative-frame.rkt"
+         "analysis/material-stock.rkt"
          "analysis/recurrence.rkt")
 
 (provide (all-from-out "analysis/component-trace.rkt")
@@ -12,4 +13,5 @@
          (all-from-out "analysis/convolution.rkt")
          (all-from-out "analysis/cocycle.rkt")
          (all-from-out "analysis/derivative-frame.rkt")
+         (all-from-out "analysis/material-stock.rkt")
          (all-from-out "analysis/recurrence.rkt"))
