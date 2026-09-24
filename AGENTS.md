@@ -1,38 +1,107 @@
-# Potkin semantic invariants
+# AGENTS.md
 
-- Keep raw Redex candidates separate from checked calculus-relative terms. Only the checker may construct checked nodes.
-- Resolve every node through one immutable finite equipped-calculus registry. Check exact arity and each ordered, 1-indexed premise against its entire hypersequent boundary.
-- Treat formula contexts and nonempty hypersequents as finite multisets: exchange is canonical, multiplicity is not discarded. Give equal displayed components separate local occurrence indices; coherent reindexing is future work.
-- Treat a sealed `component-incidence` as supplied, endpoint-validated data for one exact occurrence profile. Canonicalise its finite edge set, retain equal displayed components by their separate local indices, and treat absent or legacy opaque incidence as unknown, never as the empty relation.
-- Read `instance` and `incidence` as two implementation fields storing parts of one fully instantiated occurrence datum. Do not infer component or formula action from rule IDs, tags, kinds, or names; a nonfunctional component relation alone establishes no formula copying.
-- A puncture is a vacant typed premise slot, never a vertex. Infer its requirement from its retained parent. A typed open context remains valid even when no complete filler is registered.
-- Address composite component traces by puncture identity. `Box^G` has the identity trace; insertion at `p` prefixes every inserted source address `q` to `p ++ q`; and opaque local incidence on a relevant puncture-to-root path propagates an explicit unavailable result.
-- Keep premise order separate from commutative forest order. The nodeless `Box^G` context is neither an empty forest nor a CK generator. A connected `S | T` proof is not the forest of separate `S` and `T` proofs.
-- Use positive, 1-indexed premise-slot addresses, with `()` at the root. CK cuts contain existing nonroot vertex addresses and are prefix-free.
-- Retain every cut's lexicographically address-aligned detached tuple before forming its commutative forest. Preserve equal subtree occurrences and multiplicity. Never encode the whole-tree algebraic endpoint as a root cut.
-- Build CK-resolved component profiles only from nonempty existing cut witnesses and their retained punctured remainders. Keep the empty witness in the ordinary cut report, but exclude it, every root cut, and the algebraic `t tensor 1` endpoint from the profile family.
-- Build a compatible revision as an immutable target registry `(K0 - D) + A`: every withdrawn ID belongs to `K0`, additions have globally fresh IDs, and retained concrete occurrences are exactly unchanged.
-- Keep historical source certification separate from target-relative exact liveness. Lifting converts checked terms back to the shared raw syntax and revalidates them under the target with the same whole root boundary; never cast or silently reinterpret provenance.
-- Constructor deletion is a basis projection with explicit survivor and algebraic-zero results. Kill a whole forest monomial when any factor contains a withdrawn occurrence, retain every factor-local offending address with multiplicity, and let the empty forest survive as the algebra unit.
-- Formal additive zero is empty coefficient support tied to one exact calculus snapshot. It is distinct from the empty-forest basis unit, from typed `Box^G`, and from constructor deletion's diagnostic `algebraic-zero` result.
-- Forest multiplication is independent commutative juxtaposition, never filling, assembly, Mix, reconstruction, or Gentzen Cut. Tensor coordinates remain ordered even though factors within each coordinate are commutative.
-- Collected coproduct coefficients forget cut-address alignment; the occurrence-level cut-witness API must continue to retain it.
-- In the collected CK coproduct, the existing empty cut contributes `1 tensor t`; add `t tensor 1` separately exactly once and never simulate either endpoint with a root cut.
-- Compute the antipode by connected vertex degree from the collected reduced coproduct. Its products are forest juxtaposition only; it is never filling, reconstruction, repair, normalization, or an inverse derivation.
-- A pointed premise is an ordered typed input position, not a new algebra carrier. Its formal hole may remain only in the retained input tuple and must be evaluated below a positive rule root before entering a tensor coordinate.
-- Prove the typed grafting/comodule equation by the two-way correspondence between below-root CK cuts and independent empty, proper, or whole choices in every ordered premise. Prefix relative addresses by their exact outer premise addresses and multiply detached forests without exchanging premise positions.
-- A protected factorisation defect retains its uncollected cut support. Cancel exactly the empty cut and cuts wholly inside protected input regions; retain fixed-context, unprotected-input, and mixed cuts whenever any selected root lies outside protection.
-- A realised derivative-frame cycle requires productivity only for off-spine obligations. Retain parallel occurrence/slot edges, reconstruct a positive one-hole context, and verify the inverse unique-hole constructor decomposition; graph reachability alone is not the theorem.
-- The boundary-return character is calculus-scoped and multiplicative on proof forests. Define its reduction literally as `rho - epsilon`; do not multiplicatively extend the reduced functional.
-- Derive return convolution powers from recursive unique-hole constructor decomposition and an explicit bijection with every surviving uncollected iterated CK witness. Retain annihilated endpoints, off-spine cuts, and multicuts as occurrence evidence; a collected coefficient or finite fixture is not the universal proof.
-- The exact sign law is `R_G,C(-1) = rho_G(S(C))`; the first-return indicator is `-rho_G(S(C))`. Do not silently change either sign to fit a statement.
-- Treat `Box^G` side evidence separately as the empty-forest algebra unit with no CK witness. Under checked context insertion, prefix the inner frontier literally and multiply side forests with multiplicity.
-- Component recurrence is static transport of supplied component incidence. Compare relational powers with direct traces of recursively constructed context powers, retain local scalar defects and opaque unavailable results, and do not read it as execution or cyclic-proof progress.
-- A formal revision map kills an entire tensor basis term when any coordinate forest contains a withdrawn exact occurrence. Otherwise lift every coordinate explicitly into the revision target, preserving tensor order and degree.
-- Structural presentation equality never establishes common calculus provenance. Operational carrier, algebra, and tensor APIs require exact `eq?` calculus identity and explicit lifting across revisions.
-- Scalar proof-factor and hypersequent defects are boundary-arithmetic calibrations satisfying their Euler telescoping laws; they never replace the supplied component relation.
-- The CK carrier is hereditary only because admission is local to finite concrete occurrences, exact ordered boundaries, locally endpoint-validated incidence, and typed vacancies; do not broaden the claim to calculi with proof-global admission conditions.
-- Automatic repair is only for all exact inactive occurrences of a complete historical proof when each is explicitly withdrawn, material, and nullary. A nonroot plan retains its historical CK witness and separately lifts only the retained punctured remainder into the target.
-- Treat a one-vertex withdrawn ground as a separate whole-proof replacement through target `Box^G`; never manufacture a root CK cut. Filling and extraction require complete, live proofs with exact target provenance and preserve the plan's retained constructor identities and ordered structure.
-- Equality is structural proof-presentation equality. Do not add proof quotients, commuting conversions, implicit Weakening, Contraction, Mix, assembly, or Gentzen Cut.
-- Keep the raw Redex model and ordinary-Racket algorithms on the shared raw s-expression representation.
+## Default operating mode: focused
+
+Work only on the user's explicit deliverable. Prefer the smallest correct
+change or mathematical result. Do not expand the task merely because related
+work is possible.
+
+- Treat the existing repository as the source of truth.
+- Inspect the smallest relevant set of files. Use `rg` before broad reading.
+- Do not begin with a repository-wide survey, full build, or full test suite.
+- Do not browse the web unless explicitly requested or genuinely required.
+- Do not spawn subagents unless the user explicitly requests parallel
+  investigation or independent review. Use the minimum number required.
+- Do not add dependencies, introduce another implementation language, redesign
+  APIs, or refactor unrelated code without approval.
+- Do not create reports, plans, benchmarks, generated data, or documentation
+  unless they contribute directly to the requested deliverable.
+- Never treat time spent, number of commands, or volume of output as a success
+  criterion.
+
+## Investigation budget
+
+- Form a concrete hypothesis, proof obligation, or proposed diff before doing
+  extensive diagnostics.
+- If roughly eight exploratory tool actions produce no concrete direction,
+  stop and report what is missing instead of broadening the search.
+- Ask before undertaking a full-repository scan, lengthy exhaustive
+  enumeration, major architectural change, or command expected to take more
+  than five minutes.
+- Do not rerun an unchanged command merely to reconfirm its result.
+- If a focused correction fails twice, report the blocker before beginning a
+  general diagnostic campaign.
+
+## Editing
+
+- Preserve existing user changes and unrelated work.
+- Make small, reviewable diffs.
+- Follow the repository's existing language, structures, and conventions.
+- Do not mass-format or mechanically rewrite unrelated files.
+- Do not create a parallel Python prototype when the relevant implementation
+  already exists in Racket or Lean unless specifically requested.
+
+## Verification
+
+- Run the narrowest relevant check first.
+- Test changed files or modules before testing the whole repository.
+- Run a full build or full suite at most once at the end, and only when the
+  change's scope warrants it or the user requests it.
+- Do not investigate unrelated pre-existing failures.
+- State exactly which checks were run and which were not run.
+
+## Mathematical and scientific discipline
+
+- Keep the Connes–Kreimer Hopf algebra central to this project.
+- Do not introduce mathematical machinery without stating what new theorem,
+  invariant, computation, or operational distinction it provides.
+- Keep CK admissible cuts distinct from logical Cut, forest product distinct
+  from external Mix, and proof trees distinct from formula trees.
+- Do not infer a general theorem from a single derivation or bounded
+  enumeration.
+- Label results accurately as:
+  `PROVED`, `MECHANIZED`, `CODE-CHECKED`, `BOUNDED-EVIDENCE`, or `CONJECTURED`.
+- Never describe a code check as a proof or claim novelty without evidence.
+
+## Completion
+
+Give a concise report containing:
+
+1. What changed or was established.
+2. Why it was necessary.
+3. The exact verification performed.
+4. Anything still unproved, unverified, or blocked.
+
+Stop once the requested deliverable has been reached.
+
+## POTKIN core invariants
+
+- Raw Redex terms and checked calculus-relative terms are distinct. Only the
+  checker constructs checked nodes.
+- All checked nodes belong to one immutable equipped-calculus registry and
+  retain exact calculus provenance.
+- Formula contexts and hypersequents are finite multisets: exchange is
+  canonical but multiplicity and occurrence identity are preserved.
+- Premise positions are ordered and 1-indexed.
+- A puncture is a typed vacant premise slot, not a vertex. `Box^G`, the empty
+  forest unit, and algebraic zero are three different objects.
+- CK cuts select existing nonroot vertices and are prefix-free. The empty cut
+  gives `1 tensor t`; `t tensor 1` is added separately and is not a root cut.
+- Preserve occurrence-level cut witnesses and addresses before collecting
+  equal algebraic terms.
+- Forest multiplication is the algebra product, not filling, Gentzen Cut,
+  Mix, reconstruction, or normalization.
+- The antipode is algebraic and must not be interpreted as an inverse proof,
+  repair operation, or normalization procedure.
+- Crossing calculus revisions requires explicit lifting and rechecking; never
+  silently reinterpret provenance.
+- Report mathematical status as `PROVED`, `MECHANIZED`, `CODE-CHECKED`,
+  `BOUNDED-EVIDENCE`, or `CONJECTURED`.
+
+For changes involving incidence, punctures, coproducts, grafting, derivatives,
+revision maps, repair, return characters, or convolution powers, read
+`docs/SEMANTIC_INVARIANTS.md` before editing the relevant code. Do not load
+that document for unrelated tasks.
+
+The detailed document describes the current implementation. It does not
+prohibit an explicitly requested extension or alternative construction.
