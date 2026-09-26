@@ -314,7 +314,39 @@
    summary port-name filler target source-states direct-entries
    compositional-entries '() endpoint 'truncated #f))
 
-(define (audit-macro-cuts summary port-name filler #:limit [limit 4096])
+(define (audit-target-pointed-states who source-audit filler calculus)
+  (unless (macro-cut-audit? source-audit)
+    (raise-argument-error who "macro-cut-audit?" source-audit))
+  (unless (and (eq? (macro-cut-audit-completeness source-audit) 'complete)
+               (macro-cut-audit-direct=compositional? source-audit))
+    (raise-arguments-error
+     who
+     "a reused source audit must be complete and occurrence-resolved"
+     "source audit completeness"
+     (macro-cut-audit-completeness source-audit)
+     "source audit direct=compositional?"
+     (macro-cut-audit-direct=compositional? source-audit)))
+  ;; Identity is intentional.  A staged caller may reuse only the exact
+  ;; checked target certified by this unforgeable audit value.
+  (unless (eq? (macro-cut-audit-target source-audit) filler)
+    (raise-arguments-error
+     who
+     "a reused source audit must certify the exact filler object"
+     "source audit target" (macro-cut-audit-target source-audit)
+     "filler" filler))
+  (unless (eq? (checked-term-calculus filler) calculus)
+    (error who "a reused source audit crossed calculus provenance"))
+  (append
+   (for/list ([entry (in-list (macro-cut-audit-entries source-audit))])
+     (define witness (macro-cut-audit-entry-witness entry))
+     (make-macro-pointed-state/internal
+      (if (null? (cut-witness-addresses witness)) 'empty 'proper)
+      witness))
+   (list (make-macro-pointed-state/internal 'whole #f))))
+
+(define (audit-macro-cuts summary port-name filler
+                          #:limit [limit 4096]
+                          #:source-audit [source-audit #f])
   (let/ec return
   (define who 'audit-macro-cuts)
   (unless (macro-summary? summary)
@@ -374,20 +406,31 @@
                (term-admitted-by? calculus target))
     (error who "native filling did not produce an exact admitted proof"))
 
-  (define-values (source-witnesses source-truncated?)
-    (bounded-sequence->list
-     (in-admissible-cut-witnesses filler) limit))
-  (for ([witness (in-list source-witnesses)])
-    (unless (cut-witness? witness)
-      (error who "source native cut enumeration emitted an error: ~e"
-             witness)))
-  (define source-states
-    (append
-     (for/list ([witness (in-list source-witnesses)])
-       (make-macro-pointed-state/internal
-        (if (null? (cut-witness-addresses witness)) 'empty 'proper)
-        witness))
-     (list (make-macro-pointed-state/internal 'whole #f))))
+  (define-values (source-states source-truncated?)
+    (cond
+      [source-audit
+       ;; Nested transport consumes the inner audit's retained native
+       ;; witnesses.  It therefore does not enumerate cuts of the completed
+       ;; inner target a second time.
+       (values
+        (audit-target-pointed-states who source-audit filler calculus)
+        #f)]
+      [else
+       (define-values (source-witnesses truncated?)
+         (bounded-sequence->list
+          (in-admissible-cut-witnesses filler) limit))
+       (for ([witness (in-list source-witnesses)])
+         (unless (cut-witness? witness)
+           (error who "source native cut enumeration emitted an error: ~e"
+                  witness)))
+       (values
+        (append
+         (for/list ([witness (in-list source-witnesses)])
+           (make-macro-pointed-state/internal
+            (if (null? (cut-witness-addresses witness)) 'empty 'proper)
+            witness))
+         (list (make-macro-pointed-state/internal 'whole #f)))
+        truncated?)]))
   (define whole-state (last source-states))
   (define endpoint-pair
     (and (checked-hole? (macro-summary-context summary))

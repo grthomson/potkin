@@ -313,6 +313,29 @@
       (entries-in-sector composed-audit 'partial-copy))
  '(((1 1 1)) ((1 1 2))))
 
+;; Nested clients may reuse an already completed audit's retained target
+;; witnesses instead of enumerating that completed source again.  The public
+;; constructor remains unavailable, and the resulting native ledger is exact.
+(define reused-source-audit
+  (audit-macro-cuts
+   pass-summary 'x (macro-cut-audit-target chain-audit)
+   #:source-audit chain-audit))
+(define fresh-source-audit
+  (audit-macro-cuts
+   pass-summary 'x (macro-cut-audit-target chain-audit)))
+(check-equal? (macro-cut-audit-completeness reused-source-audit) 'complete)
+(check-true (macro-cut-audit-direct=compositional? reused-source-audit))
+(check-equal?
+ (map macro-pointed-state-kind
+      (macro-cut-audit-source-states reused-source-audit))
+ (map macro-pointed-state-kind
+      (macro-cut-audit-source-states fresh-source-audit)))
+(check-equal?
+ (map macro-cut-audit-entry-addresses
+      (macro-cut-audit-compositional-entries reused-source-audit))
+ (map macro-cut-audit-entry-addresses
+      (macro-cut-audit-compositional-entries fresh-source-audit)))
+
 ;; Truncation is explicit and disables the equality claim.
 (define truncated (audit-macro-cuts dup2-summary 'x uv #:limit 1))
 (check-equal? (macro-cut-audit-completeness truncated) 'truncated)

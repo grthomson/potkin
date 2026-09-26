@@ -9,6 +9,7 @@
          "analysis/macro-cut-audit.rkt"
          "analysis/macro-summary.rkt"
          "analysis/material-hopf-selector.rkt"
+         "analysis/material-macro-transport.rkt"
          "analysis/material-relative-core.rkt"
          "analysis/material-stock.rkt"
          "analysis/recurrence.rkt")
@@ -22,6 +23,7 @@
          (all-from-out "analysis/macro-cut-audit.rkt")
          (all-from-out "analysis/macro-summary.rkt")
          (all-from-out "analysis/material-hopf-selector.rkt")
+         (all-from-out "analysis/material-macro-transport.rkt")
          (all-from-out "analysis/material-relative-core.rkt")
          (all-from-out "analysis/material-stock.rkt")
          (all-from-out "analysis/recurrence.rkt"))
