@@ -2,6 +2,7 @@
 
 (require "analysis/component-trace.rkt"
          "analysis/ancestry.rkt"
+         "analysis/base-certificate-slice.rkt"
          "analysis/convolution.rkt"
          "analysis/cocycle.rkt"
          "analysis/derivative-frame.rkt"
@@ -12,6 +13,7 @@
 
 (provide (all-from-out "analysis/component-trace.rkt")
          (all-from-out "analysis/ancestry.rkt")
+         (all-from-out "analysis/base-certificate-slice.rkt")
          (all-from-out "analysis/convolution.rkt")
          (all-from-out "analysis/cocycle.rkt")
          (all-from-out "analysis/derivative-frame.rkt")
