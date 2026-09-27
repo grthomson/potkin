@@ -12,7 +12,8 @@
          "analysis/material-macro-transport.rkt"
          "analysis/material-relative-core.rkt"
          "analysis/material-stock.rkt"
-         "analysis/recurrence.rkt")
+         "analysis/recurrence.rkt"
+         "analysis/sharing-saturation.rkt")
 
 (provide (all-from-out "analysis/component-trace.rkt")
          (all-from-out "analysis/ancestry.rkt")
@@ -26,4 +27,5 @@
          (all-from-out "analysis/material-macro-transport.rkt")
          (all-from-out "analysis/material-relative-core.rkt")
          (all-from-out "analysis/material-stock.rkt")
-         (all-from-out "analysis/recurrence.rkt"))
+         (all-from-out "analysis/recurrence.rkt")
+         (all-from-out "analysis/sharing-saturation.rkt"))
