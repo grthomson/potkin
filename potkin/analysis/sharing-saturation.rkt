@@ -84,6 +84,12 @@
          sharing-character-polynomial-terms
          sharing-character-polynomial-coefficient
          sharing-character-polynomial-degree
+         sharing-character-expansion?
+         sharing-character-expansion-status
+         sharing-character-expansion-polynomial
+         sharing-character-expansion-term-count
+         sharing-character-expansion-term-limit
+         expand-sharing-source-character
 
          sharing-saturation-audit?
          sharing-saturation-audit-proof
@@ -174,6 +180,9 @@
 ;; This is a scalar diagnostic, not POTKIN's proof-forest formal-sum carrier.
 (struct sharing-character-polynomial (source-order coefficient-table)
   #:constructor-name make-sharing-character-polynomial/internal
+  #:transparent)
+(struct sharing-character-expansion (status polynomial term-count term-limit)
+  #:constructor-name make-sharing-character-expansion/internal
   #:transparent)
 
 (struct sharing-saturation-audit
@@ -749,6 +758,86 @@
               (in-hash-keys
                (sharing-character-polynomial-coefficient-table polynomial))])
     (max maximum (vector-ref exponents index))))
+
+(define (limited-polynomial-add left right limit)
+  (let/ec overflow
+    (define table
+      (for/fold
+          ([table (sharing-character-polynomial-coefficient-table left)])
+          ([(exponents coefficient)
+            (in-hash
+             (sharing-character-polynomial-coefficient-table right))])
+        (define next (table-add table exponents coefficient))
+        (when (> (hash-count next) limit) (overflow #f))
+        next))
+    (make-sharing-character-polynomial/internal
+     (sharing-character-polynomial-source-order left) table)))
+
+(define (limited-polynomial-multiply left right limit)
+  (let/ec overflow
+    ;; Coefficients are nonnegative, so a newly distinct monomial cannot later
+    ;; disappear by cancellation.  Stopping at limit+1 is therefore exact.
+    (define table
+      (for*/fold
+          ([table (hash)])
+          ([(left-exponents left-coefficient)
+            (in-hash
+             (sharing-character-polynomial-coefficient-table left))]
+           [(right-exponents right-coefficient)
+            (in-hash
+             (sharing-character-polynomial-coefficient-table right))])
+        (define next
+          (table-add table
+                     (vector-add left-exponents right-exponents)
+                     (* left-coefficient right-coefficient)))
+        (when (> (hash-count next) limit) (overflow #f))
+        next))
+    (make-sharing-character-polynomial/internal
+     (sharing-character-polynomial-source-order left) table)))
+
+(define (expand-sharing-source-character nodes root-source
+                                         #:term-limit [term-limit 4096])
+  (define who 'expand-sharing-source-character)
+  (unless (and (list? nodes) (andmap sharing-source-node? nodes))
+    (raise-argument-error who "(listof sharing-source-node?)" nodes))
+  (unless (exact-positive-integer? term-limit)
+    (raise-argument-error who "exact-positive-integer?" term-limit))
+  (define table (source-node-table nodes))
+  (unless (hash-has-key? table root-source)
+    (raise-arguments-error who "root source is absent from the source nodes"
+                           "root source" root-source))
+  (define source-order (map sharing-source-node-id nodes))
+  (define memo (make-hash))
+  (define expansion
+    (let/ec truncated
+      (define (evaluate source)
+        (hash-ref
+         memo source
+         (lambda ()
+           (define node (hash-ref table source))
+           (define retained
+             (for/fold ([product (polynomial-one source-order)])
+                       ([child (in-list
+                                (sharing-source-node-child-source-ids node))])
+               (define next
+                 (limited-polynomial-multiply product (evaluate child)
+                                              term-limit))
+               (unless next (truncated #f))
+               next))
+           (define result
+             (limited-polynomial-add
+              (polynomial-variable source-order source) retained term-limit))
+           (unless result (truncated #f))
+           (hash-set! memo source result)
+           result)))
+      (define polynomial (evaluate root-source))
+      (make-sharing-character-expansion/internal
+       'exact polynomial
+       (hash-count (sharing-character-polynomial-coefficient-table polynomial))
+       term-limit)))
+  (or expansion
+      (make-sharing-character-expansion/internal
+       'truncated #f #f term-limit)))
 
 (define (audit-sharing-saturation proof source-map
                                   #:witness-limit [witness-limit 4096]

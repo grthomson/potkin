@@ -13,6 +13,7 @@
          "analysis/material-relative-core.rkt"
          "analysis/material-stock.rkt"
          "analysis/recurrence.rkt"
+         "analysis/shared-ck-circuit.rkt"
          "analysis/sharing-saturation.rkt")
 
 (provide (all-from-out "analysis/component-trace.rkt")
@@ -28,4 +29,5 @@
          (all-from-out "analysis/material-relative-core.rkt")
          (all-from-out "analysis/material-stock.rkt")
          (all-from-out "analysis/recurrence.rkt")
+         (all-from-out "analysis/shared-ck-circuit.rkt")
          (all-from-out "analysis/sharing-saturation.rkt"))
