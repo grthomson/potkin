@@ -14,7 +14,8 @@
          "analysis/material-stock.rkt"
          "analysis/recurrence.rkt"
          "analysis/shared-ck-circuit.rkt"
-         "analysis/sharing-saturation.rkt")
+         "analysis/sharing-saturation.rkt"
+         "analysis/support-factorization.rkt")
 
 (provide (all-from-out "analysis/component-trace.rkt")
          (all-from-out "analysis/ancestry.rkt")
@@ -30,4 +31,5 @@
          (all-from-out "analysis/material-stock.rkt")
          (all-from-out "analysis/recurrence.rkt")
          (all-from-out "analysis/shared-ck-circuit.rkt")
-         (all-from-out "analysis/sharing-saturation.rkt"))
+         (all-from-out "analysis/sharing-saturation.rkt")
+         (all-from-out "analysis/support-factorization.rkt"))
