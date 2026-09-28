@@ -1,6 +1,7 @@
 #lang racket
 
-(require "analysis/component-trace.rkt"
+(require "analysis/atomic-cycle-ck.rkt"
+         "analysis/component-trace.rkt"
          "analysis/ancestry.rkt"
          "analysis/base-certificate-slice.rkt"
          "analysis/convolution.rkt"
@@ -17,7 +18,8 @@
          "analysis/sharing-saturation.rkt"
          "analysis/support-factorization.rkt")
 
-(provide (all-from-out "analysis/component-trace.rkt")
+(provide (all-from-out "analysis/atomic-cycle-ck.rkt")
+         (all-from-out "analysis/component-trace.rkt")
          (all-from-out "analysis/ancestry.rkt")
          (all-from-out "analysis/base-certificate-slice.rkt")
          (all-from-out "analysis/convolution.rkt")
