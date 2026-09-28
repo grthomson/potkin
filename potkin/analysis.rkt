@@ -4,6 +4,7 @@
          "analysis/component-trace.rkt"
          "analysis/ancestry.rkt"
          "analysis/base-certificate-slice.rkt"
+         "analysis/coloured-cut-query.rkt"
          "analysis/convolution.rkt"
          "analysis/cocycle.rkt"
          "analysis/derivative-frame.rkt"
@@ -22,6 +23,7 @@
          (all-from-out "analysis/component-trace.rkt")
          (all-from-out "analysis/ancestry.rkt")
          (all-from-out "analysis/base-certificate-slice.rkt")
+         (all-from-out "analysis/coloured-cut-query.rkt")
          (all-from-out "analysis/convolution.rkt")
          (all-from-out "analysis/cocycle.rkt")
          (all-from-out "analysis/derivative-frame.rkt")

@@ -1,5 +1,22 @@
 # AGENTS.md
 
+## Execution and verification budget
+
+These rules apply unless the user's current prompt explicitly authorizes a named execution.
+
+- Repository inventories, theorem-card extraction, provenance checks, and “what exists?” audits are STATIC-SOURCE tasks.
+- For such tasks, use only bounded `git status`, `git log`, `git show`, `git grep`/`rg`, and targeted file reads.
+- Do not invoke Lean, Lake, Racket, Raco, builds, tests, linters, benchmarks, dependency installers, or generators merely to strengthen an audit claim.
+- Report source evidence honestly as `SOURCE-PRESENT / NOT RECHECKED`. Inconclusive execution evidence is acceptable.
+- If execution is explicitly authorized:
+  - run at most one targeted command for each disputed claim;
+  - impose a 60-second hard limit;
+  - after timeout, stop and report `INCONCLUSIVE`;
+  - do not retry, use an alternative invocation, broaden imports, or make “one final attempt.”
+- Never run a full suite unless the current prompt explicitly requests that exact suite.
+- Before any command likely to exceed 10 seconds, state what unresolved decision it could change. If it cannot change the answer, skip it.
+- Stop once sufficient evidence answers the requested question. Exhaustive environmental validation is not a goal.
+
 ## Default operating mode: focused
 
 Work only on the user's explicit deliverable. Prefer the smallest correct
