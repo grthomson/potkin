@@ -1,6 +1,7 @@
 #lang racket
 
 (require "analysis/atomic-cycle-ck.rkt"
+         "analysis/communication-float.rkt"
          "analysis/component-trace.rkt"
          "analysis/ancestry.rkt"
          "analysis/base-certificate-slice.rkt"
@@ -20,6 +21,7 @@
          "analysis/support-factorization.rkt")
 
 (provide (all-from-out "analysis/atomic-cycle-ck.rkt")
+         (all-from-out "analysis/communication-float.rkt")
          (all-from-out "analysis/component-trace.rkt")
          (all-from-out "analysis/ancestry.rkt")
          (all-from-out "analysis/base-certificate-slice.rkt")
