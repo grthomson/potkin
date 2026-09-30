@@ -23,6 +23,8 @@
          protected-pointed-input-coaction
          typed-graft
          (struct-out grafting-choice-certificate)
+         (struct-out pointed-grafting-step-certificate)
+         typed-pointed-grafting-step
          (struct-out grafting-reverse-certificate)
          (struct-out typed-grafting-cocycle-certificate)
          typed-grafting-cocycle
@@ -77,6 +79,15 @@
    forest-agrees?
    remainder-agrees?
    tensor)
+  #:transparent)
+
+;; A forward constructor step.  Unlike `typed-grafting-cocycle`, this record
+;; does not enumerate cuts of the grafted output: its native output witnesses
+;; are constructed only from the supplied, ordered child choices.
+(struct pointed-grafting-step-certificate
+  (calculus occurrence inputs positions grafted choice-families
+   choice-tuples endpoint choice-certificates ordinary-coaction
+   recursive-coaction valid?)
   #:transparent)
 
 (struct grafting-reverse-certificate
@@ -792,6 +803,176 @@
      (define tensor (accessor certificate))
      (define entry (car (formal-sum-terms tensor)))
      (cons (car entry) (cdr entry)))))
+
+(define (supplied-choice-families-error positions families)
+  (cond
+    [(not (and (list? families)
+               (= (length families) (length positions))))
+     (cocycle-error
+      'wrong-choice-family-count
+      "one supplied pointed-choice family is required per ordered premise"
+      'typed-pointed-grafting-step
+      (length positions)
+      (and (list? families) (length families)))]
+    [else
+     (for*/first ([position (in-list positions)]
+                  [family (in-value
+                           (list-ref families
+                                     (sub1 (pointed-input-position-index
+                                            position))))]
+                  #:when (not (and (list? family) (pair? family))))
+       (cocycle-error
+        'empty-choice-family
+        "each ordered premise needs a nonempty family of pointed choices"
+        'typed-pointed-grafting-step
+        'nonempty-choice-family
+        family
+        (hash 'position (pointed-input-position-index position))))]))
+
+(define (supplied-choice-error calculus positions families)
+  (for*/first ([position (in-list positions)]
+               [choice (in-list
+                        (list-ref families
+                                  (sub1 (pointed-input-position-index
+                                         position))))]
+               #:when
+               (or (not (pointed-coaction-choice? choice))
+                   (not (equal? (and (pointed-coaction-choice? choice)
+                                    (pointed-coaction-choice-position choice))
+                                position))
+                   (not (and (pointed-coaction-choice? choice)
+                             (proof-forest?
+                              (pointed-coaction-choice-detached-forest choice))))
+                   (not (and (pointed-coaction-choice? choice)
+                             (eq? calculus
+                                  (proof-forest-calculus
+                                   (pointed-coaction-choice-detached-forest
+                                    choice)))))
+                   (not (and (pointed-coaction-choice? choice)
+                             (checked-term?
+                              (pointed-coaction-choice-retained-input choice))))
+                   (not (and (pointed-coaction-choice? choice)
+                             (checked-term-has-exact-calculus?
+                              (pointed-coaction-choice-retained-input choice)
+                              calculus)))
+                   (not (and (pointed-coaction-choice? choice)
+                             (equal?
+                              (derivation-root-boundary
+                               (pointed-coaction-choice-retained-input choice))
+                              (pointed-input-position-boundary position))))))
+    (cocycle-error
+     'malformed-supplied-choice
+     "a supplied choice must belong to its exact ordered premise and calculus"
+     'typed-pointed-grafting-step
+     position
+     choice)))
+
+;; Forward half of the pointed grafting bijection.  Supplying child families
+;; permits a caller to thread already constructed choices along a context
+;; spine.  The source is rechecked and every prefixed address family is passed
+;; through `make-cut-witness`; no cut family of the output is enumerated.
+(define (typed-pointed-grafting-step
+         calculus occurrence-or-id inputs choice-families
+         #:limit [limit analysis-default-limit])
+  (check-limit 'typed-pointed-grafting-step limit)
+  (unless (and (list? inputs) (andmap checked-term? inputs))
+    (raise-argument-error
+     'typed-pointed-grafting-step "(listof checked-term?)" inputs))
+  (define occurrence
+    (resolve-occurrence calculus occurrence-or-id
+                        'typed-pointed-grafting-step))
+  (cond
+    [(analysis-error? occurrence) occurrence]
+    [else
+     (define open-corolla (corolla calculus occurrence))
+     (define positions (make-pointed-input-positions open-corolla inputs))
+     (cond
+       [(analysis-error? positions) positions]
+       [else
+        (define family-error
+          (supplied-choice-families-error positions choice-families))
+        (define choice-error
+          (and (not family-error)
+               (supplied-choice-error
+                calculus positions choice-families)))
+        (cond
+          [family-error family-error]
+          [choice-error choice-error]
+          [else
+           (define choice-count
+             (for/fold ([count 1]) ([family (in-list choice-families)])
+               (cap-multiply count (length family) limit)))
+           (cond
+             [(over-limit? choice-count limit)
+              (limit-result
+               'typed-pointed-grafting-step limit (add1 limit)
+               'supplied-choice-tuple-count
+               (hash 'required-at-least (add1 limit)
+                     'occurrence-id
+                     (concrete-occurrence-id occurrence)))]
+             [else
+              (define grafted (context-compose open-corolla inputs))
+              (cond
+                [(context-error? grafted)
+                 (cocycle-error
+                  'grafting-failed
+                  "rechecking the typed ordered graft failed"
+                  'typed-pointed-grafting-step 'checked-node grafted)]
+                [else
+                 (define tuples
+                   (cartesian-choice-tuples calculus choice-families))
+                 (define certificates-or-errors
+                   (for/list ([tuple (in-list tuples)])
+                     (forward-choice-certificate
+                      open-corolla grafted tuple
+                      'typed-grafting-cocycle)))
+                 (define certificate-error
+                   (findf analysis-error? certificates-or-errors))
+                 (cond
+                   [certificate-error certificate-error]
+                   [else
+                    (define certificates certificates-or-errors)
+                    (define valid?
+                      (and
+                       (address-family-unique?
+                        certificates
+                        (lambda (certificate)
+                          (cut-witness-addresses
+                           (grafting-choice-certificate-global-witness
+                            certificate))))
+                       (andmap
+                        (lambda (certificate)
+                          (and
+                           (grafting-choice-certificate-reconstructs?
+                            certificate)
+                           (grafting-choice-certificate-forest-agrees?
+                            certificate)
+                           (grafting-choice-certificate-remainder-agrees?
+                            certificate)))
+                        certificates)))
+                    (if (not valid?)
+                        (cocycle-error
+                         'invalid-forward-grafting-certificate
+                         "a supplied child choice failed native witness reconstruction"
+                         'typed-pointed-grafting-step
+                         'valid-forward-certificates
+                         certificates)
+                        (let* ([endpoint
+                                (pure-tensor
+                                 calculus
+                                 (vector
+                                  (singleton-forest grafted)
+                                  (empty-proof-forest calculus)))]
+                               [ordinary
+                                (formal-sum-from-choice-certificates
+                                 calculus certificates
+                                 grafting-choice-certificate-tensor)]
+                               [recursive
+                                (formal-sum-add endpoint ordinary)])
+                          (pointed-grafting-step-certificate
+                           calculus occurrence inputs positions grafted
+                           choice-families tuples endpoint certificates
+                           ordinary recursive #t)))])])])])])]))
 
 (define (typed-grafting-cocycle
          calculus occurrence-or-id inputs
