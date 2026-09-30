@@ -10,9 +10,11 @@ These rules apply unless the user's current prompt explicitly authorizes a named
 - Report source evidence honestly as `SOURCE-PRESENT / NOT RECHECKED`. Inconclusive execution evidence is acceptable.
 - If execution is explicitly authorized:
   - run at most one targeted command for each disputed claim;
-  - impose a 60-second hard limit;
-  - after timeout, stop and report `INCONCLUSIVE`;
-  - do not retry, use an alternative invocation, broaden imports, or make “one final attempt.”
+  - at 60 seconds without output, treat this as a progress checkpoint, not a failure or mandatory stop;
+  - determine whether the command is compiling dependencies or executing tests. A focused command may continue for up to five minutes if there is evidence of work. Do not repeatedly rerun an unchanged command;
+  - if it still cannot complete, record the last known phase and isolate the cause with one targeted diagnostic. Report `INCONCLUSIVE` only after that diagnosis;
+  - run the focused test once after implementation and rerun it only after a relevant fix;
+  - run smoke once at the end only if changed public imports/exports are not already exercised by the focused test. Do not run the full suite by default.
 - Never run a full suite unless the current prompt explicitly requests that exact suite.
 - Before any command likely to exceed 10 seconds, state what unresolved decision it could change. If it cannot change the answer, skip it.
 - Stop once sufficient evidence answers the requested question. Exhaustive environmental validation is not a goal.
