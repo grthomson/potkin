@@ -16,6 +16,7 @@
          checked-term?
          checked-term-calculus
          checked-term-has-exact-calculus?
+         assemble-checked-application
          validate-candidate
          validation-error?
          validation-error-code
@@ -101,6 +102,102 @@
                     #:actual [actual #f]
                     #:details [details (hash)])
   (validation-error code message address expected actual details))
+
+;; Assemble one checked rule application while treating its already-checked
+;; children as opaque handles.  This is the native local operation needed by
+;; replay and zipper clients: it validates the exact registry object, arity,
+;; ordered whole-premise boundaries, and direct calculus provenance, but does
+;; not convert a sealed child back to raw syntax or traverse its interior.
+;; The checked constructors remain private, so a child's root provenance is a
+;; sufficient certificate that the checker which created it established the
+;; same invariant recursively.
+(define (assemble-checked-application calculus occurrence children
+                                      #:expected [expected #f])
+  (unless (equipped-calculus? calculus)
+    (raise-argument-error
+     'assemble-checked-application "equipped-calculus?" calculus))
+  (unless (concrete-occurrence? occurrence)
+    (raise-argument-error
+     'assemble-checked-application "concrete-occurrence?" occurrence))
+  (unless (list? children)
+    (raise-argument-error
+     'assemble-checked-application "list?" children))
+  (unless (or (not expected) (hypersequent? expected))
+    (raise-argument-error
+     'assemble-checked-application "(or/c #f hypersequent?)" expected))
+  (cond
+    [(not (eq? occurrence
+               (calculus-lookup calculus
+                                (concrete-occurrence-id occurrence))))
+     (make-error
+      'unregistered-occurrence
+      "local assembly requires the exact occurrence object stored in the calculus"
+      '()
+      #:actual occurrence)]
+    [(and expected
+          (not (equal? expected
+                       (concrete-occurrence-conclusion occurrence))))
+     (make-error
+      'wrong-boundary
+      "the assembled occurrence has the wrong whole conclusion boundary"
+      '()
+      #:expected expected
+      #:actual (concrete-occurrence-conclusion occurrence)
+      #:details (hash 'occurrence
+                      (concrete-occurrence-id occurrence)))]
+    [(not (= (length children) (occurrence-arity occurrence)))
+     (make-error
+      'wrong-arity
+      "local assembly needs exactly the registered ordered premise slots"
+      '()
+      #:expected (occurrence-arity occurrence)
+      #:actual (length children)
+      #:details (hash 'occurrence
+                      (concrete-occurrence-id occurrence)))]
+    [else
+     (define malformed
+       (for/first ([child (in-list children)]
+                   [slot (in-naturals 1)]
+                   #:when
+                   (or (not (checked-term? child))
+                       (and (checked-term? child)
+                            (not (eq? (checked-term-calculus child)
+                                      calculus)))
+                       (and (checked-term? child)
+                            (not (equal?
+                                  (derivation-root-boundary child)
+                                  (occurrence-premise occurrence slot))))))
+         (list slot child)))
+     (cond
+       [(not malformed)
+        (make-checked-node/internal calculus occurrence children)]
+       [else
+        (define slot (first malformed))
+        (define child (second malformed))
+        (cond
+          [(not (checked-term? child))
+           (make-error
+            'malformed-child
+            "an assembled premise must already be a checked term"
+            (list slot)
+            #:actual child)]
+          [(not (eq? (checked-term-calculus child) calculus))
+           (make-error
+            'wrong-calculus-provenance
+            "an assembled premise belongs to a different calculus snapshot"
+            (list slot)
+            #:expected calculus
+            #:actual (checked-term-calculus child))]
+          [else
+           (make-error
+            'wrong-boundary
+            "an assembled premise has the wrong whole hypersequent boundary"
+            (list slot)
+            #:expected (occurrence-premise occurrence slot)
+            #:actual (derivation-root-boundary child)
+            #:details (hash 'occurrence
+                            (concrete-occurrence-id occurrence)
+                            'slot slot))])])]))
 
 (define (validate-candidate calculus candidate #:expected [expected #f])
   (unless (equipped-calculus? calculus)

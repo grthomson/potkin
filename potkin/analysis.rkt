@@ -17,6 +17,7 @@
          "analysis/material-macro-transport.rkt"
          "analysis/material-relative-core.rkt"
          "analysis/material-stock.rkt"
+         "analysis/normalization-replay.rkt"
          "analysis/recurrence.rkt"
          "analysis/shared-ck-circuit.rkt"
          "analysis/sharing-saturation.rkt"
@@ -39,6 +40,7 @@
          (all-from-out "analysis/material-macro-transport.rkt")
          (all-from-out "analysis/material-relative-core.rkt")
          (all-from-out "analysis/material-stock.rkt")
+         (all-from-out "analysis/normalization-replay.rkt")
          (all-from-out "analysis/recurrence.rkt")
          (all-from-out "analysis/shared-ck-circuit.rkt")
          (all-from-out "analysis/sharing-saturation.rkt")
