@@ -21,9 +21,11 @@
          "../kernel/boundary.rkt"
          "../kernel/calculus.rkt"
          "../kernel/check.rkt"
+         "../kernel/component-incidence.rkt"
          "../kernel/context.rkt"
          "../kernel/cut.rkt"
          "ancestry.rkt"
+         "macro-summary.rkt"
          "material-hopf-selector.rkt"
          "material-stock.rkt")
 
@@ -73,7 +75,49 @@
  replay-compiled-normalization
  run-normalization-zipper-baseline
  normalization-frontier-guarded?
- certify-guarded-source-cut)
+ certify-guarded-source-cut
+
+ ;; Checked contextual routing.  Formula and component occurrence transport
+ ;; are deliberately separate pieces of registered equipment.
+ (struct-out exact-component-routing)
+ make-exact-component-routing
+ identity-component-routing
+ (struct-out equipped-formula-edge)
+ make-equipped-formula-edge
+ (struct-out normalization-principal-mark)
+ make-normalization-principal-mark
+ (struct-out normalization-rule-equipment)
+ make-normalization-rule-equipment
+ (struct-out normalization-ancestor-lift)
+ register-normalization-ancestor-lift
+ (struct-out normalization-routing-registry)
+ make-normalization-routing-registry
+ (struct-out contextual-routing-certificate)
+ certify-contextual-normalization-event
+ check-contextual-routing-certificate
+
+ ;; Authentic finite causal interfaces and sequential pushout composition.
+ (struct-out normalization-causal-interface)
+ normalization-certificate-causal-interface
+ normalization-causal-interface-authentic?
+ compose-normalization-causal-interfaces
+ normalization-causal-interface-equivalent?
+
+ ;; Positive native elaboration, pulled causal constraints, and the integrated
+ ;; elaborate/normalize/replay certificate.
+ (struct-out normalization-macro-interpretation)
+ make-normalization-macro-interpretation
+ (struct-out interpreted-rule-potential-summary)
+ (struct-out positive-normalization-elaboration)
+ compile-positive-normalization-elaboration
+ pullback-normalization-potential
+ (struct-out normalization-collapse-analysis)
+ analyze-normalization-collapse
+ (struct-out source-aligned-frontier-certificate)
+ certify-source-aligned-frontier
+ (struct-out compositional-normalization-certificate)
+ certify-compositional-normalization
+ check-compositional-normalization-certificate)
 
 ;; Exact occurrence membership is supplied, never inferred from names, tags,
 ;; rule kinds or tree shape.  M is the common atomic-quotation macro bound.
@@ -2453,3 +2497,1590 @@
                            certificate)))
              baseline)
     (normalization-check-report #t checks inspections 0 (hash))))
+
+;; -------------------------------------------------------------------------
+;; Registered contextual routing
+;;
+;; A concrete occurrence already owns its ordered boundaries, native
+;; component incidence and immutable instance evidence.  The records below
+;; add only the formula-occurrence equipment which the kernel intentionally
+;; does not infer.  They are checked metadata for rebuilding native parents;
+;; they are never accepted as proof nodes.
+
+(struct exact-component-routing (source target pairs) #:transparent)
+(struct equipped-formula-edge (premise-slot source target) #:transparent)
+(struct normalization-principal-mark (kind position) #:transparent)
+(struct normalization-rule-equipment
+  (occurrence formula-incidence principal-marks side-condition-evidence)
+  #:transparent)
+(struct normalization-ancestor-lift
+  (id calculus before after active-before-slot port-permutation
+      input-formula-routings output-formula-routing
+      input-component-routings output-component-routing)
+  #:transparent)
+(struct normalization-routing-registry (calculus lifts search-limit)
+  #:transparent)
+(struct contextual-routing-certificate
+  (source target cell address registry local-formula-routing
+          local-component-routing ancestor-chain output-formula-routing
+          output-component-routing examined-candidates)
+  #:transparent)
+
+(define (boundary-component-sequent boundary index)
+  (and (exact-positive-integer? index)
+       (<= index (hypersequent-size boundary))
+       (component-occurrence-sequent
+        (list-ref (hypersequent-components boundary) (sub1 index)))))
+
+(define (make-exact-component-routing source target pairs)
+  (define who 'make-exact-component-routing)
+  (unless (hypersequent? source)
+    (raise-argument-error who "hypersequent? source" source))
+  (unless (hypersequent? target)
+    (raise-argument-error who "hypersequent? target" target))
+  (unless (and (list? pairs)
+               (andmap (lambda (entry)
+                         (and (pair? entry)
+                              (exact-positive-integer? (car entry))
+                              (exact-positive-integer? (cdr entry))))
+                       pairs))
+    (raise-argument-error
+     who "(listof (cons/c exact-positive-integer? exact-positive-integer?))"
+     pairs))
+  (define sources (map car pairs))
+  (define targets (map cdr pairs))
+  (unless (and (= (length pairs) (hypersequent-size source))
+               (= (length pairs) (hypersequent-size target))
+               (equal? (sort sources <)
+                       (range 1 (add1 (hypersequent-size source))))
+               (equal? (sort targets <)
+                       (range 1 (add1 (hypersequent-size target)))))
+    (raise-arguments-error
+     who "routing must be a total bijection on component occurrences"
+     "source components" (hypersequent-size source)
+     "target components" (hypersequent-size target)
+     "pairs" pairs))
+  (for ([entry (in-list pairs)])
+    (unless (equal? (boundary-component-sequent source (car entry))
+                    (boundary-component-sequent target (cdr entry)))
+      (raise-arguments-error
+       who "component routing must preserve the complete displayed sequent"
+       "source component" (car entry)
+       "target component" (cdr entry))))
+  (exact-component-routing
+   source target (for/list ([entry (in-list pairs)]) entry)))
+
+(define (identity-component-routing boundary)
+  (unless (hypersequent? boundary)
+    (raise-argument-error 'identity-component-routing "hypersequent?" boundary))
+  (make-exact-component-routing
+   boundary boundary
+   (for/list ([index (in-range 1 (add1 (hypersequent-size boundary)))])
+     (cons index index))))
+
+(define (validated-formula-routing? routing)
+  (and (exact-boundary-routing? routing)
+       (with-handlers ([exn:fail? (lambda (_) #f)])
+         (equal?
+          routing
+          (make-exact-boundary-routing
+           (exact-boundary-routing-source routing)
+           (exact-boundary-routing-target routing)
+           (exact-boundary-routing-pairs routing))))))
+
+(define (validated-component-routing? routing)
+  (and (exact-component-routing? routing)
+       (with-handlers ([exn:fail? (lambda (_) #f)])
+         (equal?
+          routing
+          (make-exact-component-routing
+           (exact-component-routing-source routing)
+           (exact-component-routing-target routing)
+           (exact-component-routing-pairs routing))))))
+
+(define (formula-routing-image routing position)
+  (define entry
+    (findf (lambda (candidate) (equal? (car candidate) position))
+           (exact-boundary-routing-pairs routing)))
+  (and entry (cdr entry)))
+
+(define (component-routing-image routing index)
+  (define entry
+    (findf (lambda (candidate) (= (car candidate) index))
+           (exact-component-routing-pairs routing)))
+  (and entry (cdr entry)))
+
+(define (identity-formula-routing? routing)
+  (and (equal? (exact-boundary-routing-source routing)
+               (exact-boundary-routing-target routing))
+       (for/and ([entry (in-list (exact-boundary-routing-pairs routing))])
+         (equal? (car entry) (cdr entry)))))
+
+(define (identity-component-routing? routing)
+  (and (equal? (exact-component-routing-source routing)
+               (exact-component-routing-target routing))
+       (for/and ([entry (in-list (exact-component-routing-pairs routing))])
+         (= (car entry) (cdr entry)))))
+
+(define (make-equipped-formula-edge occurrence premise-slot source target)
+  (define who 'make-equipped-formula-edge)
+  (unless (concrete-occurrence? occurrence)
+    (raise-argument-error who "concrete-occurrence?" occurrence))
+  (unless (and (exact-positive-integer? premise-slot)
+               (<= premise-slot (occurrence-arity occurrence)))
+    (raise-argument-error who "existing positive premise slot" premise-slot))
+  (unless (and (formula-occurrence-position? source)
+               (member source
+                       (boundary-formula-occurrences
+                        (occurrence-premise occurrence premise-slot))
+                       equal?))
+    (raise-argument-error who "formula occurrence in the named premise" source))
+  (unless (and (formula-occurrence-position? target)
+               (member target
+                       (boundary-formula-occurrences
+                        (concrete-occurrence-conclusion occurrence))
+                       equal?))
+    (raise-argument-error who "formula occurrence in the conclusion" target))
+  (equipped-formula-edge premise-slot source target))
+
+(define (make-normalization-principal-mark occurrence kind position)
+  (unless (concrete-occurrence? occurrence)
+    (raise-argument-error
+     'make-normalization-principal-mark "concrete-occurrence?" occurrence))
+  (unless (and (symbol? kind) (symbol-interned? kind))
+    (raise-argument-error
+     'make-normalization-principal-mark "interned-symbol? kind" kind))
+  (unless (and (formula-occurrence-position? position)
+               (member position
+                       (boundary-formula-occurrences
+                        (concrete-occurrence-conclusion occurrence))
+                       equal?))
+    (raise-argument-error
+     'make-normalization-principal-mark
+     "formula occurrence in the conclusion" position))
+  (normalization-principal-mark kind position))
+
+(define (make-normalization-rule-equipment
+         calculus occurrence formula-incidence principal-marks)
+  (define who 'make-normalization-rule-equipment)
+  (unless (equipped-calculus? calculus)
+    (raise-argument-error who "equipped-calculus?" calculus))
+  (unless (exact-registry-occurrence? calculus occurrence)
+    (raise-argument-error who "exact registered concrete occurrence" occurrence))
+  (unless (component-incidence? (concrete-occurrence-incidence occurrence))
+    (raise-arguments-error
+     who "contextual routing requires explicit sealed component incidence"
+     "occurrence" occurrence
+     "incidence" (concrete-occurrence-incidence occurrence)))
+  (unless (and (list? formula-incidence)
+               (andmap equipped-formula-edge? formula-incidence))
+    (raise-argument-error who "(listof equipped-formula-edge?)"
+                          formula-incidence))
+  (for ([edge (in-list formula-incidence)])
+    ;; Reconstructing through the controlled maker proves all endpoints belong
+    ;; to this exact occurrence profile, even if a transparent struct was forged.
+    (unless (equal?
+             edge
+             (make-equipped-formula-edge
+              occurrence
+              (equipped-formula-edge-premise-slot edge)
+              (equipped-formula-edge-source edge)
+              (equipped-formula-edge-target edge)))
+      (raise-arguments-error who "invalid formula-incidence endpoint"
+                             "edge" edge)))
+  (unless (and (list? principal-marks)
+               (andmap normalization-principal-mark? principal-marks))
+    (raise-argument-error who "(listof normalization-principal-mark?)"
+                          principal-marks))
+  (for ([mark (in-list principal-marks)])
+    (unless (equal?
+             mark
+             (make-normalization-principal-mark
+              occurrence
+              (normalization-principal-mark-kind mark)
+              (normalization-principal-mark-position mark)))
+      (raise-arguments-error who "invalid principal-mark endpoint"
+                             "mark" mark)))
+  (normalization-rule-equipment
+   occurrence
+   (remove-duplicates formula-incidence equal?)
+   (remove-duplicates principal-marks equal?)
+   (concrete-occurrence-instance occurrence)))
+
+(define (validated-rule-equipment? calculus equipment)
+  (and
+   (normalization-rule-equipment? equipment)
+   (with-handlers ([exn:fail? (lambda (_) #f)])
+     (equal?
+      equipment
+      (make-normalization-rule-equipment
+       calculus
+       (normalization-rule-equipment-occurrence equipment)
+       (normalization-rule-equipment-formula-incidence equipment)
+       (normalization-rule-equipment-principal-marks equipment))))))
+
+(define (relation-set=? left right)
+  (and (= (length left) (length right))
+       (andmap (lambda (item) (member item right equal?)) left)))
+
+(define (register-normalization-ancestor-lift
+         id calculus before after active-before-slot port-permutation
+         input-formula-routings output-formula-routing
+         input-component-routings output-component-routing)
+  (define who 'register-normalization-ancestor-lift)
+  (unless (and (symbol? id) (symbol-interned? id))
+    (raise-argument-error who "interned-symbol? id" id))
+  (unless (equipped-calculus? calculus)
+    (raise-argument-error who "equipped-calculus?" calculus))
+  (unless (and (validated-rule-equipment? calculus before)
+               (validated-rule-equipment? calculus after))
+    (raise-arguments-error who "expected two validated exact rule-equipment values"
+                           "before" before "after" after))
+  (define before-occurrence (normalization-rule-equipment-occurrence before))
+  (define after-occurrence (normalization-rule-equipment-occurrence after))
+  (unless (and (exact-registry-occurrence? calculus before-occurrence)
+               (exact-registry-occurrence? calculus after-occurrence))
+    (raise-arguments-error who "both occurrences must be exact objects in one registry"
+                           "before" before-occurrence "after" after-occurrence))
+  (define arity (occurrence-arity before-occurrence))
+  (unless (= arity (occurrence-arity after-occurrence))
+    (raise-arguments-error who "ancestor replacement must preserve physical arity"
+                           "before arity" arity
+                           "after arity" (occurrence-arity after-occurrence)))
+  (unless (and (exact-positive-integer? active-before-slot)
+               (<= active-before-slot arity))
+    (raise-argument-error who "existing positive active premise slot"
+                          active-before-slot))
+  (unless (and (list? port-permutation)
+               (= (length port-permutation) arity)
+               (equal? (sort port-permutation <)
+                       (range 1 (add1 arity))))
+    (raise-argument-error who "permutation of ordered 1-based premise slots"
+                          port-permutation))
+  (unless (and (list? input-formula-routings)
+               (= (length input-formula-routings) arity)
+               (andmap validated-formula-routing? input-formula-routings))
+    (raise-argument-error who "one checked formula routing per old premise slot"
+                          input-formula-routings))
+  (unless (and (list? input-component-routings)
+               (= (length input-component-routings) arity)
+               (andmap validated-component-routing? input-component-routings))
+    (raise-argument-error who "one checked component routing per old premise slot"
+                          input-component-routings))
+  (unless (validated-formula-routing? output-formula-routing)
+    (raise-argument-error who "validated exact output formula routing"
+                          output-formula-routing))
+  (unless (validated-component-routing? output-component-routing)
+    (raise-argument-error who "validated exact output component routing"
+                          output-component-routing))
+  (for ([old-slot (in-range 1 (add1 arity))]
+        [new-slot (in-list port-permutation)]
+        [formula-route (in-list input-formula-routings)]
+        [component-route (in-list input-component-routings)])
+    (unless (and
+             (equal? (exact-boundary-routing-source formula-route)
+                     (occurrence-premise before-occurrence old-slot))
+             (equal? (exact-boundary-routing-target formula-route)
+                     (occurrence-premise after-occurrence new-slot))
+             (equal? (exact-component-routing-source component-route)
+                     (occurrence-premise before-occurrence old-slot))
+             (equal? (exact-component-routing-target component-route)
+                     (occurrence-premise after-occurrence new-slot)))
+      (raise-arguments-error
+       who "premise routing endpoints must follow the declared physical slot alignment"
+       "old slot" old-slot "new slot" new-slot))
+    (unless (or (= old-slot active-before-slot)
+                (and (identity-formula-routing? formula-route)
+                     (identity-component-routing? component-route)))
+      (raise-arguments-error
+       who "inactive siblings must retain identity formula and component routes"
+       "old slot" old-slot)))
+  (unless (and
+           (equal? (exact-boundary-routing-source output-formula-routing)
+                   (concrete-occurrence-conclusion before-occurrence))
+           (equal? (exact-boundary-routing-target output-formula-routing)
+                   (concrete-occurrence-conclusion after-occurrence))
+           (equal? (exact-component-routing-source output-component-routing)
+                   (concrete-occurrence-conclusion before-occurrence))
+           (equal? (exact-component-routing-target output-component-routing)
+                   (concrete-occurrence-conclusion after-occurrence)))
+    (raise-arguments-error who "output routings must span the two exact conclusions"
+                           "formula routing" output-formula-routing
+                           "component routing" output-component-routing))
+  (unless (and
+           (eq? (concrete-occurrence-kind before-occurrence)
+                (concrete-occurrence-kind after-occurrence))
+           (eq? (concrete-occurrence-tag before-occurrence)
+                (concrete-occurrence-tag after-occurrence))
+           (equal? (normalization-rule-equipment-side-condition-evidence before)
+                   (normalization-rule-equipment-side-condition-evidence after)))
+    (raise-arguments-error
+     who "ancestor replacement must preserve kind, tag, and complete side-condition evidence"
+     "before" before-occurrence "after" after-occurrence))
+  (define transported-formula-incidence
+    (for/list ([edge
+                (in-list
+                 (normalization-rule-equipment-formula-incidence before))])
+      (define old-slot (equipped-formula-edge-premise-slot edge))
+      (define new-slot (list-ref port-permutation (sub1 old-slot)))
+      (equipped-formula-edge
+       new-slot
+       (formula-routing-image
+        (list-ref input-formula-routings (sub1 old-slot))
+        (equipped-formula-edge-source edge))
+       (formula-routing-image output-formula-routing
+                              (equipped-formula-edge-target edge)))))
+  (unless (relation-set=?
+           transported-formula-incidence
+           (normalization-rule-equipment-formula-incidence after))
+    (raise-arguments-error
+     who "formula incidence is not the exact conjugate of the registered parent"
+     "required" transported-formula-incidence
+     "registered" (normalization-rule-equipment-formula-incidence after)))
+  (define transported-marks
+    (for/list ([mark
+                (in-list
+                 (normalization-rule-equipment-principal-marks before))])
+      (normalization-principal-mark
+       (normalization-principal-mark-kind mark)
+       (formula-routing-image
+        output-formula-routing
+        (normalization-principal-mark-position mark)))))
+  (unless (relation-set=? transported-marks
+                          (normalization-rule-equipment-principal-marks after))
+    (raise-arguments-error
+     who "principal marks are not preserved by the output occurrence route"
+     "required" transported-marks
+     "registered" (normalization-rule-equipment-principal-marks after)))
+  (define before-incidence (concrete-occurrence-incidence before-occurrence))
+  (define after-incidence (concrete-occurrence-incidence after-occurrence))
+  (define transported-component-edges
+    (for/list ([edge (in-list (component-incidence-edges before-incidence))])
+      (define old-slot (component-edge-premise-slot edge))
+      (make-component-edge
+       (list-ref port-permutation (sub1 old-slot))
+       (component-routing-image
+        (list-ref input-component-routings (sub1 old-slot))
+        (component-edge-source-index edge))
+       (component-routing-image output-component-routing
+                                (component-edge-target-index edge)))))
+  (unless (equal? (make-component-incidence
+                   (vector->list (concrete-occurrence-premises after-occurrence))
+                   (concrete-occurrence-conclusion after-occurrence)
+                   transported-component-edges)
+                  after-incidence)
+    (raise-arguments-error
+     who "component incidence is not the exact conjugate of the registered parent"
+     "required edges" transported-component-edges
+     "registered incidence" after-incidence))
+  (normalization-ancestor-lift
+   id calculus before after active-before-slot
+   (for/list ([slot (in-list port-permutation)]) slot)
+   (for/list ([route (in-list input-formula-routings)]) route)
+   output-formula-routing
+   (for/list ([route (in-list input-component-routings)]) route)
+   output-component-routing))
+
+(define (validated-ancestor-lift? calculus lift)
+  (and
+   (normalization-ancestor-lift? lift)
+   (eq? (normalization-ancestor-lift-calculus lift) calculus)
+   (with-handlers ([exn:fail? (lambda (_) #f)])
+     (equal?
+      lift
+      (register-normalization-ancestor-lift
+       (normalization-ancestor-lift-id lift)
+       calculus
+       (normalization-ancestor-lift-before lift)
+       (normalization-ancestor-lift-after lift)
+       (normalization-ancestor-lift-active-before-slot lift)
+       (normalization-ancestor-lift-port-permutation lift)
+       (normalization-ancestor-lift-input-formula-routings lift)
+       (normalization-ancestor-lift-output-formula-routing lift)
+       (normalization-ancestor-lift-input-component-routings lift)
+       (normalization-ancestor-lift-output-component-routing lift))))))
+
+(define (make-normalization-routing-registry calculus lifts
+                                             #:search-limit [search-limit 64])
+  (define who 'make-normalization-routing-registry)
+  (unless (equipped-calculus? calculus)
+    (raise-argument-error who "equipped-calculus?" calculus))
+  (unless (and (list? lifts) (andmap normalization-ancestor-lift? lifts))
+    (raise-argument-error who "(listof normalization-ancestor-lift?)" lifts))
+  (unless (exact-positive-integer? search-limit)
+    (raise-argument-error who "exact-positive-integer? search-limit"
+                          search-limit))
+  (when (check-duplicates (map normalization-ancestor-lift-id lifts) eq?)
+    (raise-arguments-error who "ancestor-lift IDs must be distinct"
+                           "lifts" lifts))
+  (for ([lift (in-list lifts)])
+    (unless (validated-ancestor-lift? calculus lift)
+      (raise-arguments-error who "every lift must be validated in the exact registry snapshot"
+                             "lift" lift)))
+  (normalization-routing-registry
+   calculus (for/list ([lift (in-list lifts)]) lift) search-limit))
+
+(define (contextual-ancestor-frames source address)
+  (for/list ([depth (in-range (sub1 (length address)) -1 -1)])
+    (list (take address depth)
+          (list-ref address depth)
+          (vertex-at-address source (take address depth)))))
+
+(define (lift-matches-input? lift occurrence active-slot formula-route component-route)
+  (and (eq? occurrence
+            (normalization-rule-equipment-occurrence
+             (normalization-ancestor-lift-before lift)))
+       (= active-slot (normalization-ancestor-lift-active-before-slot lift))
+       (equal? formula-route
+               (list-ref
+                (normalization-ancestor-lift-input-formula-routings lift)
+                (sub1 active-slot)))
+       (equal? component-route
+               (list-ref
+                (normalization-ancestor-lift-input-component-routings lift)
+                (sub1 active-slot)))))
+
+(define (apply-one-ancestor-lift parent replacement lift)
+  (define before-occurrence (checked-node-occurrence parent))
+  (define after-occurrence
+    (normalization-rule-equipment-occurrence
+     (normalization-ancestor-lift-after lift)))
+  (define active-slot (normalization-ancestor-lift-active-before-slot lift))
+  (define old-children (checked-node-children parent))
+  (define placed (make-vector (length old-children) #f))
+  (for ([old-child (in-list old-children)]
+        [old-slot (in-naturals 1)]
+        [new-slot
+         (in-list (normalization-ancestor-lift-port-permutation lift))])
+    (vector-set! placed (sub1 new-slot)
+                 (if (= old-slot active-slot) replacement old-child)))
+  (assemble-checked-application
+   (normalization-ancestor-lift-calculus lift)
+   after-occurrence
+   (vector->list placed)
+   #:expected (concrete-occurrence-conclusion after-occurrence)))
+
+(define (certify-contextual-normalization-event
+         source cell address routing-registry local-component-routing)
+  (define who 'certify-contextual-normalization-event)
+  (unless (and (complete-proof? source) (checked-node? source))
+    (raise-argument-error who "complete checked proof" source))
+  (unless (normalization-cell? cell)
+    (raise-argument-error who "normalization-cell?" cell))
+  (unless (address? address)
+    (raise-argument-error who "address?" address))
+  (unless (normalization-routing-registry? routing-registry)
+    (raise-argument-error who "normalization-routing-registry?"
+                          routing-registry))
+  (unless (validated-component-routing? local-component-routing)
+    (raise-argument-error who "validated exact component routing"
+                          local-component-routing))
+  (define calculus (normalization-routing-registry-calculus routing-registry))
+  (cond
+    [(not (and (eq? (checked-node-calculus source) calculus)
+               (eq? (normalization-cell-calculus cell) calculus)))
+     (failure 'foreign-contextual-routing
+              "source, cell, and ancestor lifts require one exact calculus snapshot")]
+    [else
+     (let/ec abort
+       (define matched (match-cell-at source address cell))
+       (when (normalization-replay-failure? matched) (abort matched))
+       (define instantiated
+         (instantiate-cell-rhs cell (cell-match-bindings matched)))
+       (when (normalization-replay-failure? instantiated) (abort instantiated))
+       (define replacement (rhs-instantiation-term instantiated))
+       (define local-formula-routing
+         (normalization-cell-external-routing cell))
+       (define focus (checked-term-at-address source address))
+       (unless (and focus
+                    (equal? (exact-boundary-routing-source local-formula-routing)
+                            (derivation-root-boundary focus))
+                    (equal? (exact-boundary-routing-target local-formula-routing)
+                            (derivation-root-boundary replacement))
+                    (equal? (exact-component-routing-source
+                             local-component-routing)
+                            (derivation-root-boundary focus))
+                    (equal? (exact-component-routing-target
+                             local-component-routing)
+                            (derivation-root-boundary replacement)))
+         (abort
+          (failure 'invalid-local-routing
+                   "local formula/component routes do not span the checked event endpoints"
+                   (hash 'address address))))
+       (define frames (contextual-ancestor-frames source address))
+       (define examined 0)
+       (define limit
+         (normalization-routing-registry-search-limit routing-registry))
+       (define limit-failure #f)
+       (define deepest-missing-depth -1)
+       (define deepest-missing #f)
+       (define (record-missing! depth frame formula-route component-route
+                                [candidate #f] [validation #f])
+         (when (> depth deepest-missing-depth)
+           (set! deepest-missing-depth depth)
+           (set! deepest-missing
+                 (failure
+                  'routing-lift-unavailable
+                  "no complete compatible registered ancestor-routing chain exists"
+                  (hash
+                   'cell (normalization-cell-id cell)
+                   'redex-address address
+                   'missing-ancestor-address (first frame)
+                   'missing-occurrence
+                   (checked-node-occurrence (third frame))
+                   'required-formula-routing formula-route
+                   'required-component-routing component-route
+                   'rejected-candidate candidate
+                   'validation-error validation)))))
+       (define (search remaining current formula-route component-route chain depth)
+         (cond
+           [(null? remaining)
+            (list current formula-route component-route (reverse chain))]
+           [else
+            (define frame (car remaining))
+            (define active-slot (second frame))
+            (define parent (third frame))
+            (define candidates
+              (filter
+               (lambda (lift)
+                 (lift-matches-input?
+                  lift (checked-node-occurrence parent) active-slot
+                  formula-route component-route))
+               (normalization-routing-registry-lifts routing-registry)))
+             (when (null? candidates)
+               (record-missing! depth frame formula-route component-route))
+            (for/or ([lift (in-list candidates)])
+              (set! examined (add1 examined))
+              (cond
+                [(> examined limit)
+                 (set! limit-failure
+                       (failure
+                        'routing-lift-inconclusive
+                        "bounded ancestor-routing search exhausted its candidate limit"
+                        (hash 'limit limit
+                              'ancestor-address (first frame)
+                              'required-formula-routing formula-route
+                              'required-component-routing component-route)))
+                 #f]
+                [else
+                 (define assembled
+                   (apply-one-ancestor-lift parent current lift))
+                  (cond
+                    [(validation-error? assembled)
+                     (record-missing! depth frame formula-route component-route
+                                      (normalization-ancestor-lift-id lift)
+                                      assembled)
+                     #f]
+                    [else
+                     (search
+                      (cdr remaining) assembled
+                      (normalization-ancestor-lift-output-formula-routing lift)
+                      (normalization-ancestor-lift-output-component-routing lift)
+                      (cons lift chain) (add1 depth))])]))]))
+       (define found
+         (if (null? frames)
+             (list replacement local-formula-routing
+                   local-component-routing '())
+              (search frames replacement local-formula-routing
+                      local-component-routing '() 0)))
+       (cond
+         [found
+          (contextual-routing-certificate
+           source (first found) cell address routing-registry
+           local-formula-routing local-component-routing
+           (fourth found) (second found) (third found) examined)]
+         [limit-failure limit-failure]
+          [else deepest-missing]))]))
+
+(define (check-contextual-routing-certificate certificate)
+  (unless (contextual-routing-certificate? certificate)
+    (raise-argument-error
+     'check-contextual-routing-certificate
+     "contextual-routing-certificate?" certificate))
+  (define recomputed
+    (certify-contextual-normalization-event
+     (contextual-routing-certificate-source certificate)
+     (contextual-routing-certificate-cell certificate)
+     (contextual-routing-certificate-address certificate)
+     (contextual-routing-certificate-registry certificate)
+     (contextual-routing-certificate-local-component-routing certificate)))
+  (and (contextual-routing-certificate? recomputed)
+       (equal? recomputed certificate)))
+
+;; -------------------------------------------------------------------------
+;; Marked causal interfaces and sequential composition
+
+(struct normalization-causal-interface
+  (source target calculus source-classes source-quotient live-origins
+          marked-classes evidence-kind evidence)
+  #:transparent)
+
+(define (canonical-certificate-classes certificate)
+  (for/list ([class
+              (in-list
+               (normalization-replay-certificate-read-partition certificate))])
+    (define members (sort (replay-read-class-members class) address<?))
+    (replay-read-class
+     (car members) members (replay-read-class-ever-read? class))))
+
+(define (classes->quotient classes)
+  (for*/hash ([class (in-list classes)]
+              [member (in-list (replay-read-class-members class))])
+    (values member (replay-read-class-representative class))))
+
+(define (certificate-final-raw-origins certificate)
+  (define events (normalization-replay-certificate-events certificate))
+  (if (null? events)
+      (initial-origin-map (normalization-replay-certificate-source certificate))
+      (normalization-event-certificate-after-origin-representatives
+       (last events))))
+
+(define (normalization-certificate-causal-interface certificate)
+  (unless (normalization-replay-certificate? certificate)
+    (raise-argument-error
+     'normalization-certificate-causal-interface
+     "normalization-replay-certificate?" certificate))
+  (define source (normalization-replay-certificate-source certificate))
+  (define target (normalization-replay-certificate-target certificate))
+  (define classes (canonical-certificate-classes certificate))
+  (define quotient (classes->quotient classes))
+  (define raw-live (certificate-final-raw-origins certificate))
+  (define live
+    ;; The verified event ledger is the retained live-address lens.  Iterating
+    ;; it avoids reopening an admitted opaque target merely to rediscover the
+    ;; same addresses.
+    (for/hash ([(address origin) (in-hash raw-live)])
+      (values
+       address
+       (hash-ref
+        quotient origin
+        (lambda ()
+          (error 'normalization-certificate-causal-interface
+                 "live origin ~e is outside the admitted source index" origin))))))
+  (define marked
+    (sort
+     (for/list ([class (in-list classes)]
+                #:when (replay-read-class-ever-read? class))
+       (replay-read-class-representative class))
+     address<?))
+  (normalization-causal-interface
+   source target (checked-term-calculus source) classes quotient live marked
+   'native certificate))
+
+(define (causal-interface-semantic=? left right)
+  (and (eq? (normalization-causal-interface-source left)
+            (normalization-causal-interface-source right))
+       (eq? (normalization-causal-interface-target left)
+            (normalization-causal-interface-target right))
+       (eq? (normalization-causal-interface-calculus left)
+            (normalization-causal-interface-calculus right))
+       (equal? (normalization-causal-interface-source-classes left)
+               (normalization-causal-interface-source-classes right))
+       (equal? (normalization-causal-interface-source-quotient left)
+               (normalization-causal-interface-source-quotient right))
+       (equal? (normalization-causal-interface-live-origins left)
+               (normalization-causal-interface-live-origins right))
+       (equal? (normalization-causal-interface-marked-classes left)
+               (normalization-causal-interface-marked-classes right))))
+
+(define (classes-from-parent+marks parent source-addresses marked)
+  (define grouped
+    (for/fold ([table (hash)]) ([address (in-list source-addresses)])
+      (define representative (uf-find parent address))
+      (hash-update table representative
+                   (lambda (members) (cons address members)) '())))
+  (for/list ([representative (in-list (sort (hash-keys grouped) address<?))])
+    (define members (sort (hash-ref grouped representative) address<?))
+    (replay-read-class
+     (car members) members
+     (for/or ([member (in-list members)]) (set-member? marked member)))))
+
+(define (compose-causal-interfaces/internal prefix suffix evidence-kind evidence)
+  (define source (normalization-causal-interface-source prefix))
+  (define intermediate (normalization-causal-interface-target prefix))
+  (define target (normalization-causal-interface-target suffix))
+  ;; `source-quotient` is the admitted finite source index; composition does
+  ;; not traverse proof interiors to rebuild that index.
+  (define source-addresses
+    (sort
+     (hash-keys (normalization-causal-interface-source-quotient prefix))
+     address<?))
+  ;; First install the prefix quotient on its original source.  Then translate
+  ;; every suffix source class through the prefix live leg, which is exactly
+  ;; the finite pushout presentation of equation (4.3).
+  (define parent0 (initial-parent source))
+  (define parent1
+    (for/fold ([parent parent0])
+              ([class
+                (in-list
+                 (normalization-causal-interface-source-classes prefix))])
+      (define-values (next _representative)
+        (uf-union parent (replay-read-class-members class)))
+      next))
+  (define prefix-live (normalization-causal-interface-live-origins prefix))
+  (define parent2
+    (for/fold ([parent parent1])
+              ([class
+                (in-list
+                 (normalization-causal-interface-source-classes suffix))])
+      (define translated
+        (for/list ([address (in-list (replay-read-class-members class))])
+          (hash-ref
+           prefix-live address
+           (lambda ()
+             (error 'compose-normalization-causal-interfaces
+                    "prefix live leg lacks intermediate vertex ~e" address)))))
+      (define-values (next _representative) (uf-union parent translated))
+      next))
+  (define suffix-class-table
+    (for/hash ([class
+                (in-list
+                 (normalization-causal-interface-source-classes suffix))])
+      (values (replay-read-class-representative class)
+              (replay-read-class-members class))))
+  (define marked-source-addresses
+    (for/fold
+        ([marked (set)])
+        ([representative
+          (in-list
+           (normalization-causal-interface-marked-classes prefix))])
+      (set-add marked representative)))
+  (define marked-all
+    (for/fold
+        ([marked marked-source-addresses])
+        ([suffix-representative
+          (in-list
+           (normalization-causal-interface-marked-classes suffix))])
+      (define members (hash-ref suffix-class-table suffix-representative))
+      (for/fold ([next marked]) ([address (in-list members)])
+        (set-add next (hash-ref prefix-live address)))))
+  (define classes
+    (classes-from-parent+marks parent2 source-addresses marked-all))
+  (define quotient (classes->quotient classes))
+  (define suffix-live (normalization-causal-interface-live-origins suffix))
+  (define live
+    (for/hash ([(target-address suffix-representative)
+                (in-hash suffix-live)])
+      (define members (hash-ref suffix-class-table suffix-representative))
+      (define prefix-representative (hash-ref prefix-live (car members)))
+      (values target-address (hash-ref quotient prefix-representative))))
+  (define marked
+    (sort
+     (for/list ([class (in-list classes)]
+                #:when (replay-read-class-ever-read? class))
+       (replay-read-class-representative class))
+     address<?))
+  (normalization-causal-interface
+   source target (normalization-causal-interface-calculus prefix)
+   classes quotient live marked evidence-kind evidence))
+
+(define (normalization-causal-interface-authentic? interface)
+  (and
+   (normalization-causal-interface? interface)
+   (case (normalization-causal-interface-evidence-kind interface)
+     [(native)
+      (define certificate (normalization-causal-interface-evidence interface))
+      (and (normalization-replay-certificate? certificate)
+           (normalization-check-report-valid?
+            (check-normalization-replay-certificate certificate))
+           (causal-interface-semantic=?
+            interface
+            (normalization-certificate-causal-interface certificate)))]
+     [(composition)
+      (define evidence (normalization-causal-interface-evidence interface))
+      (and (list? evidence)
+           (= (length evidence) 2)
+           (normalization-causal-interface-authentic? (first evidence))
+           (normalization-causal-interface-authentic? (second evidence))
+           (let ([recomputed
+                  (compose-causal-interfaces/internal
+                   (first evidence) (second evidence)
+                   'composition evidence)])
+             (causal-interface-semantic=? interface recomputed)))]
+     [else #f])))
+
+(define (compose-normalization-causal-interfaces prefix suffix)
+  (define who 'compose-normalization-causal-interfaces)
+  (unless (normalization-causal-interface? prefix)
+    (raise-argument-error who "normalization-causal-interface? prefix" prefix))
+  (unless (normalization-causal-interface? suffix)
+    (raise-argument-error who "normalization-causal-interface? suffix" suffix))
+  (cond
+    [(not (normalization-causal-interface-authentic? prefix))
+     (failure 'forged-prefix-causal-interface
+              "the prefix interface is not derivable from its retained native evidence")]
+    [(not (normalization-causal-interface-authentic? suffix))
+     (failure 'forged-suffix-causal-interface
+              "the suffix interface is not derivable from its retained native evidence")]
+    [(not (eq? (normalization-causal-interface-calculus prefix)
+               (normalization-causal-interface-calculus suffix)))
+     (failure 'foreign-causal-interface
+              "causal interfaces require one exact calculus snapshot")]
+    [(not (eq? (normalization-causal-interface-target prefix)
+               (normalization-causal-interface-source suffix)))
+     (failure 'wrong-causal-intermediate
+              "sequential composition requires the exact shared intermediate proof object"
+              (hash 'prefix-target
+                    (normalization-causal-interface-target prefix)
+                    'suffix-source
+                    (normalization-causal-interface-source suffix)))]
+    [else
+     (compose-causal-interfaces/internal
+      prefix suffix 'composition (list prefix suffix))]))
+
+(define (normalization-causal-interface-equivalent? left right)
+  (unless (normalization-causal-interface? left)
+    (raise-argument-error
+     'normalization-causal-interface-equivalent?
+     "normalization-causal-interface? left" left))
+  (unless (normalization-causal-interface? right)
+    (raise-argument-error
+     'normalization-causal-interface-equivalent?
+     "normalization-causal-interface? right" right))
+  (and (normalization-causal-interface-authentic? left)
+       (normalization-causal-interface-authentic? right)
+       (causal-interface-semantic=? left right)))
+
+;; -------------------------------------------------------------------------
+;; Positive macro elaboration and source pullback
+
+(struct normalization-macro-interpretation
+  (source-occurrence summary ordered-port-labels)
+  #:transparent)
+(struct interpreted-rule-potential-summary
+  (source-occurrence N A H cut-ancestor-counts)
+  #:transparent)
+(struct positive-normalization-elaboration
+  (source expanded calculus interpretations target-signature collapse anchors
+          blocks interpreted-summaries source-profile target-profile
+          local-base-fidelity? positive-provenance-reclassification-addresses
+          admission-inspections)
+  #:transparent)
+(struct expansion-result (term collapse anchors inspections) #:transparent)
+(struct normalization-collapse-analysis
+  (pulled-classes projected-marked-source-addresses kernel-join-classes
+                  inverse-image-classes join-equal? guarded-fold)
+  #:transparent)
+(struct source-aligned-frontier-certificate
+  (source addresses source-witness source-detached source-remainder
+          source-refill expanded-addresses expanded-witness expanded-detached
+          expanded-remainder expanded-refill guarded? opaque? whole-endpoint?)
+  #:transparent)
+(struct compositional-normalization-certificate
+  (elaboration principal-phase identity-phase direct-history
+               principal-interface identity-interface composed-interface
+               direct-interface interface-agreement? collapse-analysis
+               pullback-potential direct-initial-potential
+               empty-proper-convention whole-endpoint-weight
+               opaque-interior-inspections)
+  #:transparent)
+
+(define (find-macro-port summary label)
+  (findf (lambda (port) (eq? label (macro-port-name port)))
+         (macro-summary-ports summary)))
+
+(define (make-normalization-macro-interpretation
+         calculus source-occurrence summary ordered-port-labels)
+  (define who 'make-normalization-macro-interpretation)
+  (unless (equipped-calculus? calculus)
+    (raise-argument-error who "equipped-calculus?" calculus))
+  (unless (exact-registry-occurrence? calculus source-occurrence)
+    (raise-argument-error who "exact registered source occurrence"
+                          source-occurrence))
+  (unless (and (macro-summary? summary)
+               (eq? (macro-summary-calculus summary) calculus))
+    (raise-argument-error who "macro-summary in the exact calculus" summary))
+  (define arity (occurrence-arity source-occurrence))
+  (unless (and (list? ordered-port-labels)
+               (= (length ordered-port-labels) arity)
+               (andmap (lambda (label)
+                         (and (symbol? label) (symbol-interned? label)))
+                       ordered-port-labels)
+               (not (check-duplicates ordered-port-labels eq?)))
+    (raise-argument-error
+     who "one distinct interned port label per ordered source premise"
+     ordered-port-labels))
+  (define declared-labels (map macro-port-name (macro-summary-ports summary)))
+  (unless (and (= (length declared-labels) arity)
+               (andmap (lambda (label) (memq label declared-labels))
+                       ordered-port-labels))
+    (raise-arguments-error
+     who "the positive macro may have no missing or additional physical ports"
+     "source labels" ordered-port-labels
+     "macro labels" declared-labels))
+  (unless (and (checked-node? (macro-summary-context summary))
+               (positive? (macro-summary-fixed-vertex-count summary))
+               (equal? (derivation-root-boundary
+                        (macro-summary-context summary))
+                       (concrete-occurrence-conclusion source-occurrence)))
+    (raise-arguments-error
+     who "the interpretation must be a connected positive macro at the exact output boundary"
+     "source occurrence" source-occurrence
+     "macro context" (macro-summary-context summary)))
+  (for ([label (in-list ordered-port-labels)]
+        [slot (in-naturals 1)])
+    (define port (find-macro-port summary label))
+    (unless (and port
+                 (= (macro-summary-use-count summary label) 1)
+                 (equal? (macro-port-boundary port)
+                         (occurrence-premise source-occurrence slot)))
+      (raise-arguments-error
+       who "each ordered physical source port must occur exactly once at its exact boundary"
+       "slot" slot "label" label "port" port)))
+  (normalization-macro-interpretation
+   source-occurrence summary
+   (for/list ([label (in-list ordered-port-labels)]) label)))
+
+(define (validated-macro-interpretation? calculus interpretation)
+  (and
+   (normalization-macro-interpretation? interpretation)
+   (with-handlers ([exn:fail? (lambda (_) #f)])
+     (equal?
+      interpretation
+      (make-normalization-macro-interpretation
+       calculus
+       (normalization-macro-interpretation-source-occurrence interpretation)
+       (normalization-macro-interpretation-summary interpretation)
+       (normalization-macro-interpretation-ordered-port-labels
+        interpretation))))))
+
+(define (interpretation-potential-summary interpretation target-signature)
+  (define macro
+    (macro-summary-context
+     (normalization-macro-interpretation-summary interpretation)))
+  (define potential (proof-normalization-potential macro target-signature))
+  (define counts (context-cut-ancestor-counts macro target-signature))
+  (define summary
+    (normalization-macro-interpretation-summary interpretation))
+  (define count-by-label
+    (for/hash ([input (in-list (macro-summary-inputs summary))])
+      (values
+       (macro-input-port input)
+       (cdr (assoc (macro-input-address input) counts equal?)))))
+  (interpreted-rule-potential-summary
+   (normalization-macro-interpretation-source-occurrence interpretation)
+   (normalization-potential-N potential)
+   (normalization-potential-A potential)
+   (normalization-potential-H potential)
+   (for/list
+       ([label
+         (in-list
+          (normalization-macro-interpretation-ordered-port-labels
+           interpretation))])
+     (hash-ref count-by-label label))))
+
+(define (interpretation-table interpretations)
+  (for/fold ([table (hasheq)]) ([interpretation (in-list interpretations)])
+    (define occurrence
+      (normalization-macro-interpretation-source-occurrence interpretation))
+    (when (hash-has-key? table occurrence)
+      (raise-arguments-error
+       'compile-positive-normalization-elaboration
+       "each exact source occurrence has at most one macro interpretation"
+       "occurrence" occurrence))
+    (hash-set table occurrence interpretation)))
+
+(define (prefix-hash-addresses table key-prefix value-prefix)
+  (for/hash ([(key value) (in-hash table)])
+    (values (address-append key-prefix key)
+            (address-append value-prefix value))))
+
+(define (expand-source-with-interpretations source table)
+  (let/ec abort
+    (define (walk node)
+      (define occurrence (checked-node-occurrence node))
+      (define interpretation (hash-ref table occurrence #f))
+      (unless interpretation
+        (abort
+         (failure
+          'missing-macro-interpretation
+          "the elaboration table lacks an exact source occurrence"
+          (hash 'occurrence occurrence))))
+      (define child-results
+        (for/list ([child (in-list (checked-node-children node))])
+          (walk child)))
+      (when (ormap normalization-replay-failure? child-results)
+        (abort (findf normalization-replay-failure? child-results)))
+      (define summary
+        (normalization-macro-interpretation-summary interpretation))
+      (define labels
+        (normalization-macro-interpretation-ordered-port-labels interpretation))
+      (define result-by-label
+        (for/hash ([label (in-list labels)]
+                   [result (in-list child-results)])
+          (values label result)))
+      (define fillers
+        (for/list ([input (in-list (macro-summary-inputs summary))])
+          (expansion-result-term
+           (hash-ref result-by-label (macro-input-port input)))))
+      (define filled
+        (complete-fill (macro-summary-context summary) fillers))
+      (when (context-error? filled)
+        (abort
+         (failure 'macro-elaboration-fill-failed
+                  "native macro filling rejected an interpreted source node"
+                  (hash 'occurrence occurrence 'context-error filled))))
+      (define rigid-collapse
+        (for/hash ([address
+                    (in-list
+                     (vertex-addresses (macro-summary-context summary)))])
+          (values address root-address)))
+      (define collapse rigid-collapse)
+      (define anchors (hash root-address root-address))
+      (for ([input (in-list (macro-summary-inputs summary))])
+        (define label (macro-input-port input))
+        (define source-slot
+          (add1
+           (index-of labels label eq?)))
+        (define child-result (hash-ref result-by-label label))
+        (define hole (macro-input-address input))
+        (set! collapse
+              (hash-union/right
+               collapse
+               (prefix-hash-addresses
+                (expansion-result-collapse child-result)
+                hole (list source-slot))))
+        (set! anchors
+              (hash-union/right
+               anchors
+               (prefix-hash-addresses
+                (expansion-result-anchors child-result)
+                (list source-slot) hole))))
+      (expansion-result
+       filled collapse anchors
+       (+ (macro-summary-fixed-vertex-count summary)
+          (for/sum ([result (in-list child-results)])
+            (expansion-result-inspections result)))))
+    (walk source)))
+
+(define (macro-rigid-base-pure? interpretation profile)
+  (for/and ([address
+             (in-list
+              (vertex-addresses
+               (macro-summary-context
+                (normalization-macro-interpretation-summary
+                 interpretation))))])
+    (material-profile-designates?
+     profile
+     (checked-node-occurrence
+      (vertex-at-address
+       (macro-summary-context
+        (normalization-macro-interpretation-summary interpretation))
+       address)))))
+
+(define (compile-positive-normalization-elaboration
+         source expanded interpretations target-signature
+         #:source-profile [source-profile #f]
+         #:target-profile [target-profile #f])
+  (define who 'compile-positive-normalization-elaboration)
+  (unless (and (complete-proof? source) (checked-node? source))
+    (raise-argument-error who "complete checked source proof" source))
+  (unless (and (complete-proof? expanded) (checked-node? expanded))
+    (raise-argument-error who "complete checked expanded proof" expanded))
+  (unless (and (list? interpretations)
+               (andmap normalization-macro-interpretation? interpretations))
+    (raise-argument-error
+     who "(listof normalization-macro-interpretation?)" interpretations))
+  (unless (normalization-signature? target-signature)
+    (raise-argument-error who "normalization-signature?" target-signature))
+  (define calculus (checked-node-calculus source))
+  (cond
+    [(not (and (eq? (checked-node-calculus expanded) calculus)
+               (eq? (normalization-signature-calculus target-signature)
+                    calculus)
+               (exact-term-in-calculus? calculus source)
+               (exact-term-in-calculus? calculus expanded)))
+     (failure 'foreign-elaboration
+              "source, expansion, interpretations, and target rank require one exact calculus snapshot")]
+    [(not (and (or (not source-profile)
+                   (and (material-profile? source-profile)
+                        (eq? (material-profile-calculus source-profile)
+                             calculus)))
+               (or (not target-profile)
+                   (and (material-profile? target-profile)
+                        (eq? (material-profile-calculus target-profile)
+                             calculus)))
+               (equal? (and source-profile #t) (and target-profile #t))))
+     (failure 'invalid-elaboration-base-profiles
+              "base comparison requires two exact profiles in the same registry, or neither")]
+    [else
+     (let/ec abort
+       (for ([interpretation (in-list interpretations)])
+         (unless (validated-macro-interpretation? calculus interpretation)
+           (abort
+            (failure
+             'invalid-macro-interpretation
+             "every macro interpretation must be maker-validated in the exact elaboration calculus"))))
+       (define table (interpretation-table interpretations))
+       (define result (expand-source-with-interpretations source table))
+       (when (normalization-replay-failure? result) (abort result))
+       (unless (equal? (expansion-result-term result) expanded)
+         (abort
+          (failure
+           'wrong-elaboration-target
+           "recursive native macro filling does not reconstruct the supplied expanded proof"
+           (hash 'reconstructed (expansion-result-term result)
+                 'supplied expanded))))
+       (define collapse (expansion-result-collapse result))
+       (define anchors (expansion-result-anchors result))
+       (unless (and
+                (equal? (sort (hash-keys collapse) address<?)
+                        (vertex-addresses expanded))
+                (andmap (lambda (address)
+                          (member address (vertex-addresses source) equal?))
+                        (hash-values collapse))
+                (not
+                 (for/or ([source-address (in-list (vertex-addresses source))])
+                   (not (member source-address
+                                (hash-values collapse) equal?)))))
+         (abort
+          (failure 'invalid-macro-collapse
+                   "the derived collapse is not a total surjection onto source vertices")))
+       (define blocks
+         (for/hash ([source-address (in-list (vertex-addresses source))])
+           (values
+            source-address
+            (sort
+             (for/list ([(expanded-address owner) (in-hash collapse)]
+                        #:when (equal? owner source-address))
+               expanded-address)
+             address<?))))
+       ;; The anchor cone must be exactly the expansion of the corresponding
+       ;; source cone.  This is the concrete positive block/substitution law.
+       (for ([source-address (in-list (vertex-addresses source))])
+         (define anchor (hash-ref anchors source-address))
+         (define anchor-cone
+           (filter (lambda (address) (address-prefix? anchor address))
+                   (vertex-addresses expanded)))
+         (define collapsed-source-cone
+           (sort
+            (for/list ([(expanded-address owner) (in-hash collapse)]
+                       #:when (address-prefix? source-address owner))
+              expanded-address)
+            address<?))
+         (unless (equal? anchor-cone collapsed-source-cone)
+           (abort
+            (failure
+             'macro-anchor-law-failed
+             "a positive macro anchor does not delimit exactly one expanded source cone"
+             (hash 'source-address source-address 'anchor anchor)))))
+       (define interpreted-summaries
+         (for/list ([interpretation (in-list interpretations)])
+           (interpretation-potential-summary interpretation target-signature)))
+       (define fidelity?
+         (and source-profile target-profile
+              (for/and ([interpretation (in-list interpretations)])
+                (equal?
+                 (material-profile-designates?
+                  source-profile
+                  (normalization-macro-interpretation-source-occurrence
+                   interpretation))
+                 (macro-rigid-base-pure? interpretation target-profile)))))
+       (define positive-reclassification
+         (if (and source-profile target-profile)
+             (sort
+              (for/list ([address (in-list (vertex-addresses source))]
+                         #:do
+                         [(define occurrence
+                            (checked-node-occurrence
+                             (vertex-at-address source address)))
+                          (define interpretation (hash-ref table occurrence))]
+                         #:when
+                         (and (not (material-profile-designates?
+                                    source-profile occurrence))
+                              (macro-rigid-base-pure?
+                               interpretation target-profile)))
+                address)
+              address<?)
+             '()))
+       (positive-normalization-elaboration
+        source expanded calculus interpretations target-signature collapse
+        anchors blocks interpreted-summaries source-profile target-profile
+        (and fidelity? #t) positive-reclassification
+        (expansion-result-inspections result)))]))
+
+(define (pullback-normalization-potential source elaboration)
+  (define who 'pullback-normalization-potential)
+  (unless (checked-term? source)
+    (raise-argument-error who "checked-term?" source))
+  (unless (positive-normalization-elaboration? elaboration)
+    (raise-argument-error who "positive-normalization-elaboration?"
+                          elaboration))
+  (define calculus (positive-normalization-elaboration-calculus elaboration))
+  (unless (and (eq? (checked-term-calculus source) calculus)
+               (exact-term-in-calculus? calculus source))
+    (raise-arguments-error who "source must use the exact elaboration calculus"
+                           "source" source))
+  (define table
+    (for/hasheq
+        ([summary
+          (in-list
+           (positive-normalization-elaboration-interpreted-summaries
+            elaboration))])
+      (values (interpreted-rule-potential-summary-source-occurrence summary)
+              summary)))
+  (define totals
+    (let/ec abort
+      (define (walk current)
+        (cond
+          [(checked-hole? current) (values 0 0 0)]
+          [else
+           (define summary
+             (hash-ref table (checked-node-occurrence current) #f))
+           (unless summary
+             (abort
+              (failure
+               'missing-potential-summary
+               "the source contains an occurrence with no interpreted macro summary"
+               (hash 'occurrence (checked-node-occurrence current)))))
+           (define child-values
+             (for/list ([child (in-list (checked-node-children current))])
+               (call-with-values (lambda () (walk child)) list)))
+           (values
+            (+ (interpreted-rule-potential-summary-N summary)
+               (for/sum ([entry (in-list child-values)]) (first entry)))
+            (+ (interpreted-rule-potential-summary-A summary)
+               (for/sum ([entry (in-list child-values)]) (second entry)))
+            (+ (interpreted-rule-potential-summary-H summary)
+               (for/sum ([entry (in-list child-values)]) (third entry))
+               (for/sum
+                   ([ancestor-count
+                     (in-list
+                      (interpreted-rule-potential-summary-cut-ancestor-counts
+                       summary))]
+                    [entry (in-list child-values)])
+                 (* ancestor-count (first entry)))))]))
+       (call-with-values (lambda () (walk source)) list)))
+  (if (normalization-replay-failure? totals)
+      totals
+      (match-let ([(list N A H) totals])
+        (define M
+          (normalization-signature-macro-bound
+           (positive-normalization-elaboration-target-signature elaboration)))
+        (define L (+ N (* M A)))
+        (normalization-potential N A H M L (+ (* A (+ 1 (* L L))) H)))))
+
+(define (union-class-list parent classes)
+  (for/fold ([current parent]) ([class (in-list classes)])
+    (define members
+      (if (replay-read-class? class)
+          (replay-read-class-members class)
+          class))
+    (define-values (next _representative) (uf-union current members))
+    next))
+
+(define (partition-members classes)
+  (map replay-read-class-members classes))
+
+(define (analyze-normalization-collapse elaboration history)
+  (define who 'analyze-normalization-collapse)
+  (unless (positive-normalization-elaboration? elaboration)
+    (raise-argument-error who "positive-normalization-elaboration?"
+                          elaboration))
+  (unless (normalization-replay-certificate? history)
+    (raise-argument-error who "normalization-replay-certificate?" history))
+  (define expanded (positive-normalization-elaboration-expanded elaboration))
+  (cond
+    [(not (eq? expanded (normalization-replay-certificate-source history)))
+     (failure 'wrong-collapse-history-source
+              "collapse analysis requires the exact elaborated proof used by the history")]
+    [else
+     (define source (positive-normalization-elaboration-source elaboration))
+     (define collapse (positive-normalization-elaboration-collapse elaboration))
+     (define target-classes
+       (normalization-replay-certificate-read-partition history))
+     (define source-addresses (vertex-addresses source))
+     (define source-parent0 (initial-parent source))
+     (define source-parent
+       (for/fold ([parent source-parent0]) ([class (in-list target-classes)])
+         (define images
+           (remove-duplicates
+            (map (lambda (address) (hash-ref collapse address))
+                 (replay-read-class-members class))
+            equal?))
+         (define-values (next _representative) (uf-union parent images))
+         next))
+     (define projected-marks
+       (for*/set ([class (in-list target-classes)]
+                  #:when (replay-read-class-ever-read? class)
+                  [address (in-list (replay-read-class-members class))])
+         (hash-ref collapse address)))
+     (define pulled
+       (classes-from-parent+marks
+        source-parent source-addresses projected-marks))
+     (define expanded-addresses (vertex-addresses expanded))
+     (define expanded-parent0 (initial-parent expanded))
+     (define kernel-parent
+       (union-class-list
+        expanded-parent0
+        (hash-values (positive-normalization-elaboration-blocks elaboration))))
+     (define kernel-join-parent
+       (union-class-list kernel-parent target-classes))
+     (define kernel-join
+       (classes-from-parent+marks kernel-join-parent expanded-addresses (set)))
+     (define inverse-parent
+       (for/fold ([parent expanded-parent0]) ([class (in-list pulled)])
+         (define source-members (replay-read-class-members class))
+         (define expanded-members
+           (for/list ([(address owner) (in-hash collapse)]
+                      #:when (member owner source-members equal?))
+             address))
+         (define-values (next _representative)
+           (uf-union parent expanded-members))
+         next))
+     (define inverse-image
+       (classes-from-parent+marks inverse-parent expanded-addresses (set)))
+     (define join-equal?
+       (equal? (partition-members kernel-join)
+               (partition-members inverse-image)))
+     (normalization-collapse-analysis
+      pulled
+      (sort (set->list projected-marks) address<?)
+      kernel-join inverse-image join-equal?
+      (compute-guarded-fold source pulled
+                            (guarded-cut-fold-term-cap
+                             (normalization-replay-certificate-guarded-fold
+                              history))))]))
+
+(define (partition-guards-witness? classes witness)
+  (define owners
+    (initial-owner-map (cut-witness-source witness)
+                       (cut-witness-addresses witness)))
+  (for/and ([class (in-list classes)])
+    (= (length
+        (remove-duplicates
+         (map (lambda (address) (hash-ref owners address))
+              (replay-read-class-members class))
+         =))
+       1)))
+
+(define (certify-source-aligned-frontier certificate addresses)
+  (define who 'certify-source-aligned-frontier)
+  (unless (compositional-normalization-certificate? certificate)
+    (raise-argument-error who "compositional-normalization-certificate?"
+                          certificate))
+  (unless (and (list? addresses) (andmap address? addresses))
+    (raise-argument-error who "(listof address?)" addresses))
+  (define elaboration
+    (compositional-normalization-certificate-elaboration certificate))
+  (define source (positive-normalization-elaboration-source elaboration))
+  (define source-witness (make-cut-witness source addresses))
+  (cond
+    [(cut-error? source-witness)
+     (failure 'invalid-source-aligned-frontier
+              "the source request is not an empty/proper native CK witness"
+              (hash 'cut-error source-witness))]
+    [else
+     (define anchors (positive-normalization-elaboration-anchors elaboration))
+     (define expanded-addresses
+       (for/list ([address (in-list (cut-witness-addresses source-witness))])
+         (hash-ref anchors address)))
+     (define expanded-witness
+       (make-cut-witness
+        (positive-normalization-elaboration-expanded elaboration)
+        expanded-addresses))
+     (if (cut-error? expanded-witness)
+         (failure 'invalid-anchor-lift
+                  "the positive macro anchors did not form a native target CK witness"
+                  (hash 'cut-error expanded-witness))
+         (let* ([analysis
+                 (compositional-normalization-certificate-collapse-analysis
+                  certificate)]
+                [guarded?
+                 (partition-guards-witness?
+                  (normalization-collapse-analysis-pulled-classes analysis)
+                  source-witness)]
+                [marked
+                 (normalization-collapse-analysis-projected-marked-source-addresses
+                  analysis)]
+                [opaque?
+                 (for/and ([root (in-list (cut-witness-addresses source-witness))])
+                   (not (for/or ([address (in-list marked)])
+                          (address-prefix? root address))))]
+                [source-refill
+                 (complete-fill
+                  (cut-witness-remainder source-witness)
+                  (map detached-entry-term
+                       (cut-witness-detached source-witness)))]
+                [expanded-refill
+                 (complete-fill
+                  (cut-witness-remainder expanded-witness)
+                  (map detached-entry-term
+                       (cut-witness-detached expanded-witness)))])
+           (source-aligned-frontier-certificate
+            source addresses source-witness
+            (cut-witness-detached source-witness)
+            (cut-witness-remainder source-witness) source-refill
+            expanded-addresses expanded-witness
+            (cut-witness-detached expanded-witness)
+            (cut-witness-remainder expanded-witness) expanded-refill
+            guarded? opaque? #f)))]))
+
+(define (history-shape certificate)
+  (for/list ([event
+              (in-list
+               (normalization-replay-certificate-events certificate))])
+    (list (normalization-event-certificate-cell event)
+          (normalization-event-request-address
+           (normalization-event-certificate-request event)))))
+
+(define (history-shapes-concatenate? prefix suffix direct)
+  (define expected (append (history-shape prefix) (history-shape suffix)))
+  (define actual (history-shape direct))
+  (and (= (length expected) (length actual))
+       (for/and ([left (in-list expected)] [right (in-list actual)])
+         (and (eq? (first left) (first right))
+              (equal? (second left) (second right))))))
+
+(define (certificate-valid? certificate)
+  (and (normalization-replay-certificate? certificate)
+       (normalization-check-report-valid?
+        (check-normalization-replay-certificate certificate))))
+
+(define (certify-compositional-normalization
+         elaboration principal-phase identity-phase direct-history)
+  (define who 'certify-compositional-normalization)
+  (unless (positive-normalization-elaboration? elaboration)
+    (raise-argument-error who "positive-normalization-elaboration?"
+                          elaboration))
+  (unless (and (normalization-replay-certificate? principal-phase)
+               (normalization-replay-certificate? identity-phase)
+               (normalization-replay-certificate? direct-history))
+    (raise-arguments-error who "expected three native normalization certificates"
+                           "principal" principal-phase
+                           "identity" identity-phase
+                           "direct" direct-history))
+  (cond
+    [(not (and (certificate-valid? principal-phase)
+               (certificate-valid? identity-phase)
+               (certificate-valid? direct-history)))
+     (failure 'invalid-compositional-history
+              "every staged and direct history must pass the independent native checker")]
+    [(not (and
+           (eq? (positive-normalization-elaboration-expanded elaboration)
+                (normalization-replay-certificate-source principal-phase))
+           (eq? (normalization-replay-certificate-target principal-phase)
+                (normalization-replay-certificate-source identity-phase))
+           (eq? (positive-normalization-elaboration-expanded elaboration)
+                (normalization-replay-certificate-source direct-history))
+           (eq? (normalization-replay-certificate-target identity-phase)
+                (normalization-replay-certificate-target direct-history))))
+     (failure 'wrong-compositional-endpoints
+              "elaboration and histories do not share their exact native endpoint objects")]
+    [(not (history-shapes-concatenate?
+           principal-phase identity-phase direct-history))
+     (failure 'wrong-direct-history
+              "the independently compiled direct history is not the staged event concatenation")]
+    [(not (and
+           (eq? (normalization-replay-certificate-material-profile principal-phase)
+                (normalization-replay-certificate-material-profile identity-phase))
+           (eq? (normalization-replay-certificate-material-profile principal-phase)
+                (normalization-replay-certificate-material-profile direct-history))))
+     (failure 'foreign-staged-base-profile
+              "staged comparison requires one exact material profile B")]
+    [else
+     (let/ec abort
+       (define principal-interface
+         (normalization-certificate-causal-interface principal-phase))
+       (define identity-interface
+         (normalization-certificate-causal-interface identity-phase))
+       (define composed
+         (compose-normalization-causal-interfaces
+          principal-interface identity-interface))
+       (when (normalization-replay-failure? composed) (abort composed))
+       (define direct-interface
+         (normalization-certificate-causal-interface direct-history))
+       (define agreement?
+         (normalization-causal-interface-equivalent?
+          composed direct-interface))
+       (unless agreement?
+         (abort
+          (failure 'causal-composition-disagreement
+                   "staged causal pushout disagrees with the independently checked direct history")))
+       (define collapse-analysis
+         (analyze-normalization-collapse elaboration direct-history))
+       (when (normalization-replay-failure? collapse-analysis)
+         (abort collapse-analysis))
+       (unless (normalization-collapse-analysis-join-equal?
+                collapse-analysis)
+         (abort
+          (failure 'collapse-join-law-failed
+                   "kernel(collapse) join target reads differs from the pulled inverse image")))
+       (define pullback
+         (pullback-normalization-potential
+          (positive-normalization-elaboration-source elaboration)
+          elaboration))
+       (when (normalization-replay-failure? pullback) (abort pullback))
+       (define direct-initial
+         (first
+          (normalization-replay-certificate-potentials direct-history)))
+       (unless (equal? pullback direct-initial)
+         (abort
+          (failure
+           'pullback-potential-disagreement
+           "macro/filler summaries do not recover the fixed target potential"
+           (hash 'pullback pullback 'direct direct-initial))))
+       (define opaque-inspections
+         (+ (normalization-replay-certificate-opaque-interior-inspections
+             principal-phase)
+            (normalization-replay-certificate-opaque-interior-inspections
+             identity-phase)
+            (normalization-replay-certificate-opaque-interior-inspections
+             direct-history)))
+       (unless (zero? opaque-inspections)
+         (abort
+          (failure 'opaque-interior-read
+                   "admitted opaque providers were inspected during normalization")))
+       (compositional-normalization-certificate
+        elaboration principal-phase identity-phase direct-history
+        principal-interface identity-interface composed direct-interface
+        agreement? collapse-analysis pullback direct-initial
+        'empty+proper 1 opaque-inspections))]))
+
+(define (check-compositional-normalization-certificate certificate)
+  (unless (compositional-normalization-certificate? certificate)
+    (raise-argument-error
+     'check-compositional-normalization-certificate
+     "compositional-normalization-certificate?" certificate))
+  (define elaboration
+    (compositional-normalization-certificate-elaboration certificate))
+  (define rebuilt-elaboration
+    (compile-positive-normalization-elaboration
+     (positive-normalization-elaboration-source elaboration)
+     (positive-normalization-elaboration-expanded elaboration)
+     (positive-normalization-elaboration-interpretations elaboration)
+     (positive-normalization-elaboration-target-signature elaboration)
+     #:source-profile
+     (positive-normalization-elaboration-source-profile elaboration)
+     #:target-profile
+     (positive-normalization-elaboration-target-profile elaboration)))
+  (cond
+    [(normalization-replay-failure? rebuilt-elaboration)
+     (normalization-check-report
+      #f '((positive-elaboration . #f)) 0 0
+      (hash 'failure rebuilt-elaboration))]
+    [(not (equal? rebuilt-elaboration elaboration))
+     (normalization-check-report
+      #f '((positive-elaboration . #f)) 0 0
+      (hash 'failure 'elaboration-metadata-mismatch))]
+    [else
+     (define recomputed
+       (certify-compositional-normalization
+        rebuilt-elaboration
+        (compositional-normalization-certificate-principal-phase certificate)
+        (compositional-normalization-certificate-identity-phase certificate)
+        (compositional-normalization-certificate-direct-history certificate)))
+     (if (and (compositional-normalization-certificate? recomputed)
+              (equal? recomputed certificate))
+         (normalization-check-report
+          #t
+          '((positive-elaboration . #t)
+            (native-phases . #t)
+            (causal-pushout . #t)
+            (collapse-join . #t)
+            (pullback-potential . #t)
+            (opaque-replay . #t))
+          0 0 (hash))
+         (normalization-check-report
+          #f '((integrated-recomputation . #f)) 0 0
+          (hash 'failure recomputed)))]))

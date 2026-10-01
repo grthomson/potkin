@@ -562,7 +562,809 @@
  (normalization-check-report-valid?
   (check-normalization-replay-certificate nested-certificate)))
 
+;; --------------------------------------------------------------------------
+;; Arity-four positive elaboration, staged causal composition, and source
+;; pullback.  This is one fixed coarse presentation cell, not unrestricted
+;; Cut elimination for a mixed coarse/binary calculus.
+
+(define B4-a1 (one-sided 'p-perp 'p))
+(define B4-a2 (one-sided 'p-perp 'p)) ; equal display, distinct physical slot
+(define B4-a3 (one-sided 'q-perp 'q))
+(define B4-a4 (one-sided 'r-perp 'r))
+(define B4-t12 (one-sided 'p-perp 'p-perp '(tensor p p)))
+(define B4-t123
+  (one-sided 'p-perp 'p-perp 'q-perp
+             '(tensor (tensor p p) q)))
+(define B4-t1234
+  (one-sided 'p-perp 'p-perp 'q-perp 'r-perp
+             '(tensor (tensor (tensor p p) q) r)))
+(define B4-Q (one-sided 'p-perp 'p-perp 'q-perp 'r-perp))
+(define B4-p12
+  (one-sided '(par p-perp p-perp) 'q-perp 'r-perp))
+(define B4-p123
+  (one-sided '(par (par p-perp p-perp) q-perp) 'r-perp))
+(define B4-p1234
+  (one-sided '(par (par (par p-perp p-perp) q-perp) r-perp)))
+
+(define (occurrence4 id premises conclusion [kind 'logical])
+  (make-concrete-occurrence
+   id premises conclusion
+   #:kind kind
+   #:tag 'arity-four-normalization
+   #:instance (list 'arity-four-instance id)
+   #:incidence (total-component-incidence premises conclusion)))
+
+(define ax4-1-occ (occurrence4 'a4-ax-1 '() B4-a1 'material))
+(define ax4-2-occ (occurrence4 'a4-ax-2 '() B4-a2 'material))
+(define ax4-3-occ (occurrence4 'a4-ax-3 '() B4-a3 'material))
+(define ax4-4-occ (occurrence4 'a4-ax-4 '() B4-a4 'material))
+(define q4-leaf-occ (occurrence4 'a4-q-leaf '() B4-Q 'material))
+(define q4-wrap-occ (occurrence4 'a4-q-wrap (list B4-Q) B4-Q 'material))
+(define q4-alt-leaf-occ (occurrence4 'a4-q-alt-leaf '() B4-Q 'material))
+(define q4-alt-wrap-occ
+  (occurrence4 'a4-q-alt-wrap (list B4-Q) B4-Q 'material))
+
+(define tensor4-12-occ
+  (occurrence4 'a4-tensor-12 (list B4-a1 B4-a2) B4-t12))
+(define tensor4-123-occ
+  (occurrence4 'a4-tensor-123 (list B4-t12 B4-a3) B4-t123))
+(define tensor4-1234-occ
+  (occurrence4 'a4-tensor-1234 (list B4-t123 B4-a4) B4-t1234))
+(define par4-12-occ (occurrence4 'a4-par-12 (list B4-Q) B4-p12))
+(define par4-123-occ (occurrence4 'a4-par-123 (list B4-p12) B4-p123))
+(define par4-1234-occ
+  (occurrence4 'a4-par-1234 (list B4-p123) B4-p1234))
+
+(define cut4-top-occ
+  (occurrence4 'a4-cut-top (list B4-t1234 B4-p1234) B4-Q))
+(define cut4-123-occ
+  (occurrence4 'a4-cut-123 (list B4-t123 B4-p123) B4-Q))
+(define cut4-12-occ
+  (occurrence4 'a4-cut-12 (list B4-t12 B4-p12) B4-Q))
+(define cut4-a1-occ (occurrence4 'a4-cut-a1 (list B4-a1 B4-Q) B4-Q))
+(define cut4-a2-occ (occurrence4 'a4-cut-a2 (list B4-a2 B4-Q) B4-Q))
+(define cut4-a3-occ (occurrence4 'a4-cut-a3 (list B4-a3 B4-Q) B4-Q))
+(define cut4-a4-occ (occurrence4 'a4-cut-a4 (list B4-a4 B4-Q) B4-Q))
+
+(define coarse4-tensor-occ
+  (occurrence4 'a4-coarse-tensor
+               (list B4-a1 B4-a2 B4-a3 B4-a4) B4-t1234))
+(define coarse4-par-occ
+  (occurrence4 'a4-coarse-par (list B4-Q) B4-p1234))
+(define coarse4-cut-occ
+  (occurrence4 'a4-coarse-cut (list B4-t1234 B4-p1234) B4-Q))
+
+(define occurrences4
+  (list ax4-1-occ ax4-2-occ ax4-3-occ ax4-4-occ
+        q4-leaf-occ q4-wrap-occ q4-alt-leaf-occ q4-alt-wrap-occ
+        tensor4-12-occ tensor4-123-occ tensor4-1234-occ
+        par4-12-occ par4-123-occ par4-1234-occ
+        cut4-top-occ cut4-123-occ cut4-12-occ
+        cut4-a1-occ cut4-a2-occ cut4-a3-occ cut4-a4-occ
+        coarse4-tensor-occ coarse4-par-occ coarse4-cut-occ))
+(define K4 (make-equipped-calculus occurrences4))
+(define target-signature4
+  (make-normalization-signature
+   K4
+   (list cut4-top-occ cut4-123-occ cut4-12-occ
+         cut4-a1-occ cut4-a2-occ cut4-a3-occ cut4-a4-occ)
+   (list tensor4-12-occ tensor4-123-occ tensor4-1234-occ)
+   (list par4-12-occ par4-123-occ par4-1234-occ)
+   1))
+
+(define (checked4 raw expected)
+  (define result (validate-candidate K4 raw #:expected expected))
+  (check-true (checked-term? result))
+  result)
+
+(define ax4-1 (checked4 (raw-app 'a4-ax-1) B4-a1))
+(define ax4-2 (checked4 (raw-app 'a4-ax-2) B4-a2))
+(define ax4-3 (checked4 (raw-app 'a4-ax-3) B4-a3))
+(define ax4-4 (checked4 (raw-app 'a4-ax-4) B4-a4))
+(define Q4
+  (checked4 (raw-app 'a4-q-wrap (raw-app 'a4-q-leaf)) B4-Q))
+(define Q4-prime
+  (checked4 (raw-app 'a4-q-alt-wrap (raw-app 'a4-q-alt-leaf)) B4-Q))
+
+(define expanded4-source
+  (checked4
+   (raw-app
+    'a4-cut-top
+    (raw-app
+     'a4-tensor-1234
+     (raw-app
+      'a4-tensor-123
+      (raw-app 'a4-tensor-12
+               (checked-term->raw ax4-1)
+               (checked-term->raw ax4-2))
+      (checked-term->raw ax4-3))
+     (checked-term->raw ax4-4))
+    (raw-app 'a4-par-1234
+             (raw-app 'a4-par-123
+                      (raw-app 'a4-par-12 (checked-term->raw Q4)))))
+   B4-Q))
+
+(define coarse4-source
+  (checked4
+   (raw-app
+    'a4-coarse-cut
+    (raw-app 'a4-coarse-tensor
+             (checked-term->raw ax4-1)
+             (checked-term->raw ax4-2)
+             (checked-term->raw ax4-3)
+             (checked-term->raw ax4-4))
+    (raw-app 'a4-coarse-par (checked-term->raw Q4)))
+   B4-Q))
+
+(define coarse4-principal-target
+  (checked4
+   (raw-app 'a4-cut-a4 (checked-term->raw ax4-4)
+            (raw-app 'a4-cut-a3 (checked-term->raw ax4-3)
+                     (raw-app 'a4-cut-a2 (checked-term->raw ax4-2)
+                              (raw-app 'a4-cut-a1
+                                       (checked-term->raw ax4-1)
+                                       (checked-term->raw Q4)))))
+   B4-Q))
+
+(check-equal? (derivation-vertex-count coarse4-source) 9)
+(check-equal? (derivation-vertex-count expanded4-source) 13)
+(check-equal? (derivation-vertex-count coarse4-principal-target) 10)
+
+(define identity-B4-Q (identity-boundary-routing B4-Q))
+(define survivor-route4
+  (make-normalization-port-routing 'provider identity-B4-Q))
+
+(define principal4-outer-lhs
+  (checked4
+   (raw-app 'a4-cut-top
+            (raw-app 'a4-tensor-1234 raw-hole raw-hole)
+            (raw-app 'a4-par-1234 raw-hole))
+   B4-Q))
+(define principal4-outer-rhs
+  (checked4
+   (raw-app 'a4-cut-a4 raw-hole
+            (raw-app 'a4-cut-123 raw-hole raw-hole))
+   B4-Q))
+(define principal4-outer-cell
+  (register-principal-tensor-par-cell
+   'a4-principal-outer target-signature4
+   principal4-outer-lhs principal4-outer-rhs
+   '(tensor-prefix p4 par-prefix) '(p4 tensor-prefix par-prefix)
+   identity-B4-Q))
+
+(define principal4-middle-lhs
+  (checked4
+   (raw-app 'a4-cut-123
+            (raw-app 'a4-tensor-123 raw-hole raw-hole)
+            (raw-app 'a4-par-123 raw-hole))
+   B4-Q))
+(define principal4-middle-rhs
+  (checked4
+   (raw-app 'a4-cut-a3 raw-hole
+            (raw-app 'a4-cut-12 raw-hole raw-hole))
+   B4-Q))
+(define principal4-middle-cell
+  (register-principal-tensor-par-cell
+   'a4-principal-middle target-signature4
+   principal4-middle-lhs principal4-middle-rhs
+   '(tensor-prefix p3 par-prefix) '(p3 tensor-prefix par-prefix)
+   identity-B4-Q))
+
+(define principal4-inner-lhs
+  (checked4
+   (raw-app 'a4-cut-12
+            (raw-app 'a4-tensor-12 raw-hole raw-hole)
+            (raw-app 'a4-par-12 raw-hole))
+   B4-Q))
+(define principal4-inner-rhs
+  (checked4
+   (raw-app 'a4-cut-a2 raw-hole
+            (raw-app 'a4-cut-a1 raw-hole raw-hole))
+   B4-Q))
+(define principal4-inner-cell
+  (register-principal-tensor-par-cell
+   'a4-principal-inner target-signature4
+   principal4-inner-lhs principal4-inner-rhs
+   '(p1 p2 provider) '(p2 p1 provider)
+   identity-B4-Q #:port-routings (list survivor-route4)))
+
+(define identity4-rhs (identity-context K4 B4-Q))
+(define (identity4-cell id cut-id ax-id ax-boundary register)
+  (register
+   id target-signature4
+   (checked4 (raw-app cut-id (raw-app ax-id) raw-hole) B4-Q)
+   identity4-rhs
+   '(provider) '(provider) identity-B4-Q
+   #:port-routings (list survivor-route4)))
+(define identity4-a1-cell
+  (identity4-cell 'a4-identity-a1 'a4-cut-a1 'a4-ax-1 B4-a1
+                  register-left-identity-cut-cell))
+(define identity4-a2-cell
+  (identity4-cell 'a4-identity-a2 'a4-cut-a2 'a4-ax-2 B4-a2
+                  register-left-identity-cut-cell))
+(define identity4-a3-cell
+  (identity4-cell 'a4-identity-a3 'a4-cut-a3 'a4-ax-3 B4-a3
+                  register-left-identity-cut-cell))
+(define identity4-a4-cell
+  (identity4-cell 'a4-identity-a4 'a4-cut-a4 'a4-ax-4 B4-a4
+                  register-left-identity-cut-cell))
+
+(define registry4
+  (make-normalization-cell-registry
+   target-signature4
+   (list principal4-outer-cell principal4-middle-cell principal4-inner-cell
+         identity4-a1-cell identity4-a2-cell
+         identity4-a3-cell identity4-a4-cell)))
+
+(define principal4-requests
+  (list
+   (make-normalization-event-request registry4 'a4-stage-principal-1
+                                     'a4-principal-outer '())
+   (make-normalization-event-request registry4 'a4-stage-principal-2
+                                     'a4-principal-middle '(2))
+   (make-normalization-event-request registry4 'a4-stage-principal-3
+                                     'a4-principal-inner '(2 2))))
+(define identity4-requests
+  (list
+   (make-normalization-event-request registry4 'a4-stage-identity-1
+                                     'a4-identity-a1 '(2 2 2))
+   (make-normalization-event-request registry4 'a4-stage-identity-2
+                                     'a4-identity-a2 '(2 2))
+   (make-normalization-event-request registry4 'a4-stage-identity-3
+                                     'a4-identity-a3 '(2))
+   (make-normalization-event-request registry4 'a4-stage-identity-4
+                                     'a4-identity-a4 '())))
+(define direct4-requests
+  (append
+   (for/list ([request (in-list principal4-requests)] [index (in-naturals 1)])
+     (make-normalization-event-request
+      registry4
+      (string->symbol (format "a4-direct-principal-~a" index))
+      (normalization-cell-id (normalization-event-request-cell request))
+      (normalization-event-request-address request)))
+   (for/list ([request (in-list identity4-requests)] [index (in-naturals 1)])
+     (make-normalization-event-request
+      registry4
+      (string->symbol (format "a4-direct-identity-~a" index))
+      (normalization-cell-id (normalization-event-request-cell request))
+      (normalization-event-request-address request)))))
+
+;; Old target constructors are exact material stock.  The new coarse tensor
+;; and par declarations are deliberately not source-old, exposing the positive
+;; provenance-reclassification sector rather than silently relabelling them.
+(define B4-source
+  (make-material-profile
+   K4 (list ax4-1-occ ax4-2-occ ax4-3-occ ax4-4-occ
+            q4-leaf-occ q4-wrap-occ coarse4-cut-occ)))
+(define B4-target
+  (make-material-profile
+   K4
+   (list ax4-1-occ ax4-2-occ ax4-3-occ ax4-4-occ
+         q4-leaf-occ q4-wrap-occ q4-alt-leaf-occ q4-alt-wrap-occ
+         tensor4-12-occ tensor4-123-occ tensor4-1234-occ
+         par4-12-occ par4-123-occ par4-1234-occ
+         cut4-top-occ cut4-123-occ cut4-12-occ
+         cut4-a1-occ cut4-a2-occ cut4-a3-occ cut4-a4-occ)))
+
+;; Native positive macro interpretations of every constructor used by the
+;; coarse source.  Every source physical port occurs exactly once.
+(define coarse-cut-macro
+  (compile-macro-summary
+   K4 (checked4 (raw-app 'a4-cut-top raw-hole raw-hole) B4-Q)
+   (list (make-macro-port 'tensor B4-t1234)
+         (make-macro-port 'par B4-p1234))
+   (list (cons '(1) 'tensor) (cons '(2) 'par))))
+(define coarse-tensor-macro
+  (compile-macro-summary
+   K4
+   (checked4
+    (raw-app 'a4-tensor-1234
+             (raw-app 'a4-tensor-123
+                      (raw-app 'a4-tensor-12 raw-hole raw-hole)
+                      raw-hole)
+             raw-hole)
+    B4-t1234)
+   (list (make-macro-port 'p1 B4-a1)
+         (make-macro-port 'p2 B4-a2)
+         (make-macro-port 'p3 B4-a3)
+         (make-macro-port 'p4 B4-a4))
+   (list (cons '(1 1 1) 'p1) (cons '(1 1 2) 'p2)
+         (cons '(1 2) 'p3) (cons '(2) 'p4))))
+(define coarse-par-macro
+  (compile-macro-summary
+   K4
+   (checked4
+    (raw-app 'a4-par-1234
+             (raw-app 'a4-par-123
+                      (raw-app 'a4-par-12 raw-hole)))
+    B4-p1234)
+   (list (make-macro-port 'provider B4-Q))
+   (list (cons '(1 1 1) 'provider))))
+(define q-wrap-macro
+  (compile-macro-summary
+   K4 (checked4 (raw-app 'a4-q-wrap raw-hole) B4-Q)
+   (list (make-macro-port 'q-body B4-Q))
+   (list (cons '(1) 'q-body))))
+(define (nullary-macro raw boundary)
+  (compile-macro-summary K4 (checked4 raw boundary) '() '()))
+
+(define interpretations4
+  (list
+   (make-normalization-macro-interpretation
+    K4 coarse4-cut-occ coarse-cut-macro '(tensor par))
+   (make-normalization-macro-interpretation
+    K4 coarse4-tensor-occ coarse-tensor-macro '(p1 p2 p3 p4))
+   (make-normalization-macro-interpretation
+    K4 coarse4-par-occ coarse-par-macro '(provider))
+   (make-normalization-macro-interpretation
+    K4 ax4-1-occ (nullary-macro (raw-app 'a4-ax-1) B4-a1) '())
+   (make-normalization-macro-interpretation
+    K4 ax4-2-occ (nullary-macro (raw-app 'a4-ax-2) B4-a2) '())
+   (make-normalization-macro-interpretation
+    K4 ax4-3-occ (nullary-macro (raw-app 'a4-ax-3) B4-a3) '())
+   (make-normalization-macro-interpretation
+    K4 ax4-4-occ (nullary-macro (raw-app 'a4-ax-4) B4-a4) '())
+   (make-normalization-macro-interpretation
+    K4 q4-wrap-occ q-wrap-macro '(q-body))
+   (make-normalization-macro-interpretation
+    K4 q4-leaf-occ (nullary-macro (raw-app 'a4-q-leaf) B4-Q) '())))
+
+(define elaboration4
+  (compile-positive-normalization-elaboration
+   coarse4-source expanded4-source interpretations4 target-signature4
+   #:source-profile B4-source #:target-profile B4-target))
+(check-true (positive-normalization-elaboration? elaboration4))
+(check-equal?
+ (positive-normalization-elaboration-positive-provenance-reclassification-addresses
+  elaboration4)
+ '((1) (2)))
+(check-false
+ (positive-normalization-elaboration-local-base-fidelity? elaboration4))
+
+(define initial4-frontier (make-cut-witness expanded4-source '((2))))
+(define principal4-certificate
+  (compile-normalization-replay
+   expanded4-source initial4-frontier registry4 principal4-requests
+   #:material-profile B4-target #:polynomial-term-cap 128))
+(check-true (normalization-replay-certificate? principal4-certificate))
+(check-equal?
+ (map normalization-potential-A
+      (normalization-replay-certificate-potentials principal4-certificate))
+ '(7 6 5 4))
+
+(define principal4-target
+  (normalization-replay-certificate-target principal4-certificate))
+(check-equal? principal4-target coarse4-principal-target)
+(define identity4-frontier
+  (make-cut-witness principal4-target '((2 2 2 2))))
+(define identity4-certificate
+  (compile-normalization-replay
+   principal4-target identity4-frontier registry4 identity4-requests
+   #:material-profile B4-target #:polynomial-term-cap 128))
+(check-true (normalization-replay-certificate? identity4-certificate))
+
+(define direct4-certificate
+  (compile-normalization-replay
+   expanded4-source initial4-frontier registry4 direct4-requests
+   #:material-profile B4-target #:polynomial-term-cap 128))
+(check-true (normalization-replay-certificate? direct4-certificate))
+(check-equal?
+ (map normalization-potential-A
+      (normalization-replay-certificate-potentials direct4-certificate))
+ '(7 6 5 4 3 2 1 0))
+(define psi4-sequence
+  (map normalization-potential-psi
+       (normalization-replay-certificate-potentials direct4-certificate)))
+(check-true
+ (for/and ([before (in-list psi4-sequence)]
+           [after (in-list (cdr psi4-sequence))])
+   (> before after)))
+(check-true
+ (andmap (lambda (potential) (= (normalization-potential-M potential) 1))
+         (normalization-replay-certificate-potentials direct4-certificate)))
+
+(define (count-active proof occurrences)
+  (for/sum ([address (in-list (vertex-addresses proof))])
+    (if (memq (checked-node-occurrence (vertex-at-address proof address))
+              occurrences)
+        1 0)))
+(define coarse-active-occurrences
+  (list coarse4-cut-occ coarse4-tensor-occ coarse4-par-occ
+        cut4-a1-occ cut4-a2-occ cut4-a3-occ cut4-a4-occ))
+(check-equal? (count-active coarse4-source coarse-active-occurrences) 3)
+(check-equal?
+ (count-active coarse4-principal-target coarse-active-occurrences) 4)
+
+(define compositional4
+  (certify-compositional-normalization
+   elaboration4 principal4-certificate identity4-certificate
+   direct4-certificate))
+(check-true (compositional-normalization-certificate? compositional4))
+(check-true
+ (compositional-normalization-certificate-interface-agreement?
+  compositional4))
+(check-true
+ (normalization-collapse-analysis-join-equal?
+  (compositional-normalization-certificate-collapse-analysis
+   compositional4)))
+(check-equal?
+ (compositional-normalization-certificate-pullback-potential compositional4)
+ (first (normalization-replay-certificate-potentials direct4-certificate)))
+(define missing-potential-summary
+  (pullback-normalization-potential Q4-prime elaboration4))
+(check-true (normalization-replay-failure? missing-potential-summary))
+(check-equal? (normalization-replay-failure-code missing-potential-summary)
+              'missing-potential-summary)
+(check-equal?
+ (compositional-normalization-certificate-empty-proper-convention
+  compositional4)
+ 'empty+proper)
+(check-equal?
+ (compositional-normalization-certificate-whole-endpoint-weight
+  compositional4)
+ 1)
+(check-equal?
+ (compositional-normalization-certificate-opaque-interior-inspections
+  compositional4)
+ 0)
+(check-true
+ (normalization-check-report-valid?
+  (check-compositional-normalization-certificate compositional4)))
+
+;; Dead marked classes survive the staged pushout even though Q alone is live.
+(define direct4-interface
+  (compositional-normalization-certificate-direct-interface compositional4))
+(define direct4-live-classes
+  (remove-duplicates
+   (hash-values (normalization-causal-interface-live-origins
+                 direct4-interface))
+   equal?))
+(check-true
+ (for/or ([marked
+           (in-list
+            (normalization-causal-interface-marked-classes direct4-interface))])
+   (not (member marked direct4-live-classes equal?))))
+
+;; Equal source partitions do not license a forged/swapped live map.
+(define principal4-interface
+  (compositional-normalization-certificate-principal-interface
+   compositional4))
+(define distinct-live-pair
+  (for*/first ([(left-address left-origin)
+                (in-hash
+                 (normalization-causal-interface-live-origins
+                  principal4-interface))]
+               [(right-address right-origin)
+                (in-hash
+                 (normalization-causal-interface-live-origins
+                  principal4-interface))]
+               #:when (not (equal? left-origin right-origin)))
+    (list left-address left-origin right-address right-origin)))
+(check-not-false distinct-live-pair)
+(define forged-principal4-interface
+  (struct-copy
+   normalization-causal-interface principal4-interface
+   [live-origins
+    (hash-set
+     (hash-set
+      (normalization-causal-interface-live-origins principal4-interface)
+      (first distinct-live-pair) (fourth distinct-live-pair))
+     (third distinct-live-pair) (second distinct-live-pair))]))
+(define forged-composition4
+  (compose-normalization-causal-interfaces
+   forged-principal4-interface
+   (compositional-normalization-certificate-identity-interface
+    compositional4)))
+(check-true (normalization-replay-failure? forged-composition4))
+(check-equal? (normalization-replay-failure-code forged-composition4)
+              'forged-prefix-causal-interface)
+
+;; Source-aligned Q is an independently guarded and literally opaque region;
+;; both native source and expanded anchor cuts retain ordered tuples/remainders
+;; and reconstruct exactly.  The root remains only the separate whole endpoint.
+(define source-Q4-certificate
+  (certify-source-aligned-frontier compositional4 '((2 1))))
+(check-true (source-aligned-frontier-certificate?
+             source-Q4-certificate))
+(check-true (source-aligned-frontier-certificate-guarded?
+             source-Q4-certificate))
+(check-true (source-aligned-frontier-certificate-opaque?
+             source-Q4-certificate))
+(check-equal?
+ (source-aligned-frontier-certificate-expanded-addresses
+  source-Q4-certificate)
+ '((2 1 1 1)))
+(check-equal?
+ (source-aligned-frontier-certificate-source-refill source-Q4-certificate)
+ coarse4-source)
+(check-equal?
+ (source-aligned-frontier-certificate-expanded-refill source-Q4-certificate)
+ expanded4-source)
+(check-true
+ (and (cut-witness-reconstructs?
+       (source-aligned-frontier-certificate-source-witness
+        source-Q4-certificate))
+      (cut-witness-reconstructs?
+       (source-aligned-frontier-certificate-expanded-witness
+        source-Q4-certificate))))
+(check-true (cut-error? (make-cut-witness coarse4-source (list root-address))))
+
+;; A second checked provider replays through all seven steps without any
+;; post-admission interior read and survives by exact object identity.
+(define replay4
+  (replay-compiled-normalization
+   (normalization-replay-certificate-compiled-history direct4-certificate)
+   (list Q4-prime)))
+(check-true (normalization-replay-result? replay4))
+(check-eq? (normalization-replay-result-target replay4) Q4-prime)
+(check-equal?
+ (normalization-replay-result-opaque-interior-inspections replay4)
+ 0)
+
+;; Independent bounded source-cut oracle.  It checks the pulled recurrence and
+;; concrete source-aligned certificates, but is not the universal theorem.
+(define source4-native-object-count 0)
+(define source4-guarded-object-count 0)
+(for ([witness (in-admissible-cut-witnesses coarse4-source)])
+  (set! source4-native-object-count (add1 source4-native-object-count))
+  (define aligned
+    (certify-source-aligned-frontier
+     compositional4 (cut-witness-addresses witness)))
+  (check-true (source-aligned-frontier-certificate? aligned))
+  (when (source-aligned-frontier-certificate-guarded? aligned)
+    (set! source4-guarded-object-count (add1 source4-guarded-object-count))))
+(define source4-fold
+  (normalization-collapse-analysis-guarded-fold
+   (compositional-normalization-certificate-collapse-analysis
+    compositional4)))
+(check-equal? source4-guarded-object-count
+              (guarded-cut-fold-empty-and-proper-count source4-fold))
+
+;; --------------------------------------------------------------------------
+;; Checked nonidentity contextual routing with bounded backtracking.
+
+(define route-child-boundary (one-sided 'p 'p))
+(define route-output-boundary (one-sided 'p))
+(define route-left-boundary (one-sided 'u))
+(define route-right-boundary (one-sided 'v))
+
+(define (route-incidence premises conclusion)
+  (make-component-incidence
+   premises conclusion
+   (for/list ([slot (in-range 1 (add1 (length premises)))])
+     (make-component-edge slot 1 1))))
+(define (route-occurrence id premises conclusion tag instance incidence)
+  (make-concrete-occurrence
+   id premises conclusion #:tag tag #:instance instance
+   #:incidence incidence))
+
+(define route-U-occ
+  (route-occurrence 'route-U '() route-left-boundary 'route-atom 'U
+                    (route-incidence '() route-left-boundary)))
+(define route-V-occ
+  (route-occurrence 'route-V '() route-right-boundary 'route-atom 'V
+                    (route-incidence '() route-right-boundary)))
+(define route-W-occ
+  (route-occurrence 'route-W '() route-child-boundary 'route-quote 'W
+                    (route-incidence '() route-child-boundary)))
+(define route-cut-occ
+  (route-occurrence
+   'route-cut (list route-left-boundary route-right-boundary)
+   route-child-boundary 'route-cut 'cut
+   (route-incidence (list route-left-boundary route-right-boundary)
+                    route-child-boundary)))
+(define inner-before-occ
+  (route-occurrence
+   'route-inner-before (list route-child-boundary) route-child-boundary
+   'route-inner 'same-inner-side-condition
+   (route-incidence (list route-child-boundary) route-child-boundary)))
+(define inner-after-id-occ
+  (route-occurrence
+   'route-inner-after-id (list route-child-boundary) route-child-boundary
+   'route-inner 'same-inner-side-condition
+   (route-incidence (list route-child-boundary) route-child-boundary)))
+(define inner-after-swap-occ
+  (route-occurrence
+   'route-inner-after-swap (list route-child-boundary) route-child-boundary
+   'route-inner 'same-inner-side-condition
+   (route-incidence (list route-child-boundary) route-child-boundary)))
+(define outer-before-occ
+  (route-occurrence
+   'route-outer-before (list route-child-boundary) route-output-boundary
+   'route-outer 'same-outer-side-condition
+   (route-incidence (list route-child-boundary) route-output-boundary)))
+(define outer-after-occ
+  (route-occurrence
+   'route-outer-after (list route-child-boundary) route-output-boundary
+   'route-outer 'same-outer-side-condition
+   (route-incidence (list route-child-boundary) route-output-boundary)))
+
+(define K-route
+  (make-equipped-calculus
+   (list route-U-occ route-V-occ route-W-occ route-cut-occ
+         inner-before-occ inner-after-id-occ inner-after-swap-occ
+         outer-before-occ outer-after-occ)))
+(define route-signature
+  (make-normalization-signature K-route (list route-cut-occ) '() '() 1))
+(define (checked-route raw expected)
+  (define result (validate-candidate K-route raw #:expected expected))
+  (check-true (checked-term? result))
+  result)
+(define route-lhs
+  (checked-route (raw-app 'route-cut
+                          (raw-app 'route-U) (raw-app 'route-V))
+                 route-child-boundary))
+(define route-rhs (checked-route (raw-app 'route-W) route-child-boundary))
+(define route-positions
+  (boundary-formula-occurrences route-child-boundary))
+(define swap-formula-route
+  (make-exact-boundary-routing
+   route-child-boundary route-child-boundary
+   (list (cons (first route-positions) (second route-positions))
+         (cons (second route-positions) (first route-positions)))))
+(define route-cell
+  (register-atomic-root-pair-quote-cell
+   'route-local-swap route-signature route-lhs route-rhs
+   swap-formula-route))
+(define route-source
+  (checked-route
+   (raw-app 'route-outer-before
+            (raw-app 'route-inner-before
+                     (checked-term->raw route-lhs)))
+   route-output-boundary))
+
+(define route-component-child
+  (identity-component-routing route-child-boundary))
+(define route-component-output
+  (identity-component-routing route-output-boundary))
+(define inner-source-positions
+  (boundary-formula-occurrences route-child-boundary))
+(define inner-target-positions
+  (boundary-formula-occurrences route-child-boundary))
+(define output-position (first (boundary-formula-occurrences
+                                route-output-boundary)))
+
+(define inner-before-equipment
+  (make-normalization-rule-equipment
+   K-route inner-before-occ
+   (list
+    (make-equipped-formula-edge inner-before-occ 1
+                                (first inner-source-positions)
+                                (first inner-target-positions))
+    (make-equipped-formula-edge inner-before-occ 1
+                                (second inner-source-positions)
+                                (second inner-target-positions)))
+   (list (make-normalization-principal-mark
+          inner-before-occ 'principal (first inner-target-positions)))))
+(define inner-after-id-equipment
+  (make-normalization-rule-equipment
+   K-route inner-after-id-occ
+   (list
+    (make-equipped-formula-edge inner-after-id-occ 1
+                                (second inner-source-positions)
+                                (first inner-target-positions))
+    (make-equipped-formula-edge inner-after-id-occ 1
+                                (first inner-source-positions)
+                                (second inner-target-positions)))
+   (list (make-normalization-principal-mark
+          inner-after-id-occ 'principal (first inner-target-positions)))))
+(define inner-after-swap-equipment
+  (make-normalization-rule-equipment
+   K-route inner-after-swap-occ
+   (list
+    (make-equipped-formula-edge inner-after-swap-occ 1
+                                (second inner-source-positions)
+                                (second inner-target-positions))
+    (make-equipped-formula-edge inner-after-swap-occ 1
+                                (first inner-source-positions)
+                                (first inner-target-positions)))
+   (list (make-normalization-principal-mark
+          inner-after-swap-occ 'principal (second inner-target-positions)))))
+(define outer-before-equipment
+  (make-normalization-rule-equipment
+   K-route outer-before-occ
+   (list (make-equipped-formula-edge outer-before-occ 1
+                                     (first inner-source-positions)
+                                     output-position))
+   (list (make-normalization-principal-mark
+          outer-before-occ 'principal output-position))))
+(define outer-after-equipment
+  (make-normalization-rule-equipment
+   K-route outer-after-occ
+   (list (make-equipped-formula-edge outer-after-occ 1
+                                     (second inner-source-positions)
+                                     output-position))
+   (list (make-normalization-principal-mark
+          outer-after-occ 'principal output-position))))
+
+(define inner-id-lift
+  (register-normalization-ancestor-lift
+   'inner-local-choice-that-dead-ends K-route
+   inner-before-equipment inner-after-id-equipment 1 '(1)
+   (list swap-formula-route)
+   (identity-boundary-routing route-child-boundary)
+   (list route-component-child) route-component-child))
+(define inner-swap-lift
+  (register-normalization-ancestor-lift
+   'inner-backtracked-choice K-route
+   inner-before-equipment inner-after-swap-equipment 1 '(1)
+   (list swap-formula-route) swap-formula-route
+   (list route-component-child) route-component-child))
+(define outer-swap-lift
+  (register-normalization-ancestor-lift
+   'outer-selective-conjugate K-route
+   outer-before-equipment outer-after-equipment 1 '(1)
+   (list swap-formula-route)
+   (identity-boundary-routing route-output-boundary)
+   (list route-component-child) route-component-output))
+(define routing-registry
+  (make-normalization-routing-registry
+   K-route (list inner-id-lift inner-swap-lift outer-swap-lift)
+   #:search-limit 8))
+(define routed-certificate
+  (certify-contextual-normalization-event
+   route-source route-cell '(1 1) routing-registry route-component-child))
+(check-true (contextual-routing-certificate? routed-certificate))
+(check-equal?
+ (map normalization-ancestor-lift-id
+      (contextual-routing-certificate-ancestor-chain routed-certificate))
+ '(inner-backtracked-choice outer-selective-conjugate))
+(check-true (>= (contextual-routing-certificate-examined-candidates
+                 routed-certificate)
+                3))
+(check-eq?
+ (checked-node-occurrence
+  (contextual-routing-certificate-target routed-certificate))
+ outer-after-occ)
+(check-true (check-contextual-routing-certificate routed-certificate))
+
+;; Boundary equality cannot fabricate the absent selective conjugate.
+(define unavailable-routing-registry
+  (make-normalization-routing-registry K-route (list inner-id-lift)
+                                       #:search-limit 8))
+(define unavailable-route
+  (certify-contextual-normalization-event
+   route-source route-cell '(1 1) unavailable-routing-registry
+   route-component-child))
+(check-true (normalization-replay-failure? unavailable-route))
+(check-equal? (normalization-replay-failure-code unavailable-route)
+              'routing-lift-unavailable)
+(check-equal?
+ (hash-ref (normalization-replay-failure-details unavailable-route)
+           'missing-ancestor-address)
+ root-address)
+(check-eq?
+ (hash-ref (normalization-replay-failure-details unavailable-route)
+           'missing-occurrence)
+ outer-before-occ)
+
+;; Exhausting the bounded backtracking budget is inconclusive, never an
+;; assertion that a compatible route is absent.
+(define limited-routing-registry
+  (make-normalization-routing-registry
+   K-route (list inner-id-lift inner-swap-lift outer-swap-lift)
+   #:search-limit 1))
+(define limited-route
+  (certify-contextual-normalization-event
+   route-source route-cell '(1 1) limited-routing-registry
+   route-component-child))
+(check-true (normalization-replay-failure? limited-route))
+(check-equal? (normalization-replay-failure-code limited-route)
+              'routing-lift-inconclusive)
+
+;; Transparent analysis records do not bypass their checked makers.
+(define forged-inner-lift
+  (struct-copy
+   normalization-ancestor-lift inner-swap-lift
+   [before
+    (struct-copy normalization-rule-equipment inner-before-equipment
+                 [side-condition-evidence 'forged])]))
+(check-exn
+ exn:fail?
+ (lambda ()
+   (make-normalization-routing-registry K-route (list forged-inner-lift))))
+
 (displayln
  (format
-  "normalization-replay: native replay, least exposure, read partition, guarded CK fold, U/V quote, and nested projection passed (~a native source cuts checked)"
-  oracle-witness-count))
+  "normalization-replay: base replay plus arity-four elaboration, causal pushout, collapse pullback, opaque replay, and contextual routing passed (~a + ~a native source cuts checked)"
+  oracle-witness-count source4-native-object-count))
