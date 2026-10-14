@@ -64,6 +64,16 @@
 (struct validation-error (code message address expected actual details)
   #:transparent)
 
+;; Checker-sealed completeness is cached at construction, bottom-up. This
+;; does not add a proof carrier or let clients assert completeness. Immutable
+;; checked children have already been admitted; opaque replay can inspect the
+;; resulting receipt without traversing a newly supplied provider body.
+(define sealed-completeness (make-weak-hasheq))
+(define (seal-checked-node calculus occurrence children)
+  (define node (make-checked-node/internal calculus occurrence children))
+  (hash-set! sealed-completeness node (andmap derivation-complete? children))
+  node)
+
 (define (checked-term? value)
   (or (checked-node? value) (checked-hole? value)))
 
@@ -170,7 +180,7 @@
          (list slot child)))
      (cond
        [(not malformed)
-        (make-checked-node/internal calculus occurrence children)]
+        (seal-checked-node calculus occurrence children)]
        [else
         (define slot (first malformed))
         (define child (second malformed))
@@ -263,7 +273,7 @@
                   (findf validation-error? checked-children))
                 (if child-error
                     child-error
-                    (make-checked-node/internal
+                    (seal-checked-node
                      calculus occurrence checked-children))])])]
          [_
           (make-error
@@ -285,7 +295,7 @@
   (cond
     [(checked-hole? term) #f]
     [(checked-node? term)
-     (andmap derivation-complete? (checked-node-children term))]
+     (hash-ref sealed-completeness term)]
     [else (raise-argument-error 'derivation-complete? "checked-term?" term)]))
 
 (define (derivation-vertex-count term)

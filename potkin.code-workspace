@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../nonmonlogics"
+		},
+		{
+			"path": "../potkin3"
+		},
+		{
+			"path": "../ck-process-lab-2026-09-11"
+		}
+	],
+	"settings": {}
+}

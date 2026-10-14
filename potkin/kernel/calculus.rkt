@@ -17,6 +17,8 @@
          occurrence-premise
          equipped-calculus?
          make-equipped-calculus
+         make-schema-equipped-calculus
+         calculus-schema-descriptor
          calculus-lookup
          calculus-admits?
          calculus-occurrences
@@ -162,16 +164,22 @@
      "arity" (occurrence-arity occurrence)))
   (vector-ref (concrete-occurrence-premises occurrence) (sub1 slot)))
 
-(struct equipped-calculus (registry)
+(struct equipped-calculus (registry schema-descriptor resolver)
   #:constructor-name make-equipped-calculus/internal
   #:property prop:equal+hash
   (list
    (lambda (left right recur)
      (and (equipped-calculus? right)
           (recur (equipped-calculus-registry left)
-                 (equipped-calculus-registry right))))
-   (lambda (value recur) (recur (equipped-calculus-registry value)))
-   (lambda (value recur) (recur (equipped-calculus-registry value)))))
+                 (equipped-calculus-registry right))
+          (recur (equipped-calculus-schema-descriptor left)
+                 (equipped-calculus-schema-descriptor right))))
+   (lambda (value recur)
+     (recur (list (equipped-calculus-registry value)
+                  (equipped-calculus-schema-descriptor value))))
+   (lambda (value recur)
+     (recur (list (equipped-calculus-schema-descriptor value)
+                  (equipped-calculus-registry value))))))
 
 (define (make-equipped-calculus occurrences)
   (unless (and (list? occurrences) (andmap concrete-occurrence? occurrences))
@@ -187,19 +195,61 @@
         'make-equipped-calculus
         "concrete occurrence keys must be unique"
         "duplicate key" id))
-     (hash-set registry id occurrence))))
+     (hash-set registry id occurrence))
+   #f #f))
+
+;; An explicitly requested schema extension, not a mutable admission table.
+;; The resolver must be a total, deterministic function of the frozen
+;; descriptor and ID. Its accepted instance set is fixed at construction.
+;; The private cache only interns exact objects; lookup cannot add a rule to
+;; that set. Clients supplying schemas must validate their complete shapes.
+;; Finite registries retain their original lookup/enumeration behaviour.
+(define (make-schema-equipped-calculus occurrences descriptor resolver)
+  (unless (and descriptor (immutable-registry-datum? descriptor))
+    (raise-argument-error 'make-schema-equipped-calculus
+                          "nonfalse deeply immutable schema descriptor" descriptor))
+  (unless (and (procedure? resolver) (procedure-arity-includes? resolver 1))
+    (raise-argument-error 'make-schema-equipped-calculus "unary deterministic resolver" resolver))
+  (define finite (make-equipped-calculus occurrences))
+  (define cache (make-hasheq))
+  (define lock (make-semaphore 1))
+  (define (canonical-resolve id)
+    (call-with-semaphore
+     lock
+     (lambda ()
+       (hash-ref!
+        cache id
+        (lambda ()
+          (define occurrence (resolver id))
+          (unless (or (not occurrence)
+                      (and (concrete-occurrence? occurrence)
+                           (eq? id (concrete-occurrence-id occurrence))))
+            (raise-arguments-error 'calculus-lookup
+                                   "schema resolver returned a different occurrence key"
+                                   "requested ID" id "occurrence" occurrence))
+          occurrence)))))
+  (make-equipped-calculus/internal (equipped-calculus-registry finite)
+                                   descriptor canonical-resolve))
+
+(define (calculus-schema-descriptor calculus)
+  (unless (equipped-calculus? calculus)
+    (raise-argument-error 'calculus-schema-descriptor "equipped-calculus?" calculus))
+  (equipped-calculus-schema-descriptor calculus))
 
 (define (calculus-lookup calculus id)
   (unless (equipped-calculus? calculus)
     (raise-argument-error 'calculus-lookup "equipped-calculus?" calculus))
-  (hash-ref (equipped-calculus-registry calculus) id #f))
+  (hash-ref (equipped-calculus-registry calculus) id
+            (lambda ()
+              (define resolver (equipped-calculus-resolver calculus))
+              (and resolver (symbol? id) (resolver id)))))
 
 (define (calculus-admits? calculus occurrence-or-id)
   (unless (equipped-calculus? calculus)
     (raise-argument-error 'calculus-admits? "equipped-calculus?" calculus))
   (cond
     [(symbol? occurrence-or-id)
-     (hash-has-key? (equipped-calculus-registry calculus) occurrence-or-id)]
+     (and (calculus-lookup calculus occurrence-or-id) #t)]
     [(concrete-occurrence? occurrence-or-id)
      (equal? occurrence-or-id
              (calculus-lookup calculus
@@ -209,6 +259,13 @@
 (define (calculus-occurrences calculus)
   (unless (equipped-calculus? calculus)
     (raise-argument-error 'calculus-occurrences "equipped-calculus?" calculus))
+  ;; A schema's exact instance set can be infinite. Enumerating it as a
+  ;; finite stock would give false completeness evidence, so the legacy
+  ;; finite-stock API explicitly refuses that operation on such snapshots.
+  (when (equipped-calculus-schema-descriptor calculus)
+    (raise-arguments-error 'calculus-occurrences
+                           "schema-backed calculus has no finite complete occurrence inventory"
+                           "schema" (equipped-calculus-schema-descriptor calculus)))
   (sort (hash-values (equipped-calculus-registry calculus))
         string<?
         #:key (lambda (occurrence)
@@ -217,4 +274,8 @@
 (define (calculus-size calculus)
   (unless (equipped-calculus? calculus)
     (raise-argument-error 'calculus-size "equipped-calculus?" calculus))
+  (when (equipped-calculus-schema-descriptor calculus)
+    (raise-arguments-error 'calculus-size
+                           "schema-backed calculus has no finite occurrence-stock size"
+                           "schema" (equipped-calculus-schema-descriptor calculus)))
   (hash-count (equipped-calculus-registry calculus)))

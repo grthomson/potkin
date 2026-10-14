@@ -5,6 +5,8 @@
 (require "kernel/boundary.rkt"
          "kernel/component-incidence.rkt"
          "kernel/calculus.rkt"
+         "kernel/mixed-schema.rkt"
+         "kernel/mll-schema.rkt"
          "kernel/syntax.rkt"
          "kernel/check.rkt"
          "kernel/address.rkt"
@@ -17,6 +19,8 @@
 (provide (all-from-out "kernel/boundary.rkt")
          (all-from-out "kernel/component-incidence.rkt")
          (all-from-out "kernel/calculus.rkt")
+         (all-from-out "kernel/mixed-schema.rkt")
+         (all-from-out "kernel/mll-schema.rkt")
          (all-from-out "kernel/syntax.rkt")
          (all-from-out "kernel/check.rkt")
          (all-from-out "kernel/address.rkt")
